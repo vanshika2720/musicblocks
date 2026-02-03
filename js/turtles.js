@@ -848,7 +848,7 @@ Turtles.TurtlesView = class {
             container.setAttribute("class", "tooltipped");
             container.setAttribute("data-tooltip", object.label);
             container.setAttribute("data-position", "bottom");
-            jQuery.noConflict()(".tooltipped").tooltip({
+            window.jQuery(".tooltipped").tooltip({
                 html: true,
                 delay: 100
             });
@@ -875,10 +875,10 @@ Turtles.TurtlesView = class {
             container.setAttribute(
                 "style",
                 "position: absolute; right:" +
-                    (document.body.clientWidth - x) +
-                    "px;  top: " +
-                    y +
-                    "px;"
+                (document.body.clientWidth - x) +
+                "px;  top: " +
+                y +
+                "px;"
             );
             docById("buttoncontainerTOP").appendChild(container);
             return container;
@@ -1138,7 +1138,7 @@ Turtles.TurtlesView = class {
         const __makeAllButtons = () => {
             let second = false;
             if (docById("buttoncontainerTOP")) {
-                jQuery.noConflict()(".tooltipped").tooltip("close");
+                window.jQuery(".tooltipped").tooltip("close");
                 docById("buttoncontainerTOP").parentElement.removeChild(
                     docById("buttoncontainerTOP")
                 );
@@ -1152,14 +1152,12 @@ Turtles.TurtlesView = class {
             __makeExpandButton();
             __makeClearButton();
             __makeGridButton();
-            jQuery
-                .noConflict()(".tooltipped")
-                .each(function () {
-                    jQuery.noConflict()(this).tooltip({
-                        html: true,
-                        delay: 100
-                    });
+            window.jQuery(".tooltipped").each(function () {
+                window.jQuery(this).tooltip({
+                    html: true,
+                    delay: 100
                 });
+            });
             this._locked = false;
         };
 

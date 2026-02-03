@@ -131,7 +131,7 @@ class SaveInterface {
             "</script>";
 
         this.timeLastSaved = -100;
-        const $j = jQuery.noConflict();
+        const $j = window.jQuery;
         $j(window).on("beforeunload", event => {
             let saveButton = "#saveButtonAdvanced";
             if (this.activity.beginnerMode) {
@@ -368,9 +368,8 @@ class SaveInterface {
                     } else {
                         if (!trackMap.has(instrument)) {
                             const instrumentTrack = midi.addTrack();
-                            instrumentTrack.name = `Track ${
-                                parseInt(blockIndex) + 1
-                            } - ${instrument}`;
+                            instrumentTrack.name = `Track ${parseInt(blockIndex) + 1
+                                } - ${instrument}`;
                             instrumentTrack.instrument.number =
                                 instrumentMIDI[instrument] ?? instrumentMIDI["default"];
                             trackMap.set(instrument, instrumentTrack);
@@ -796,7 +795,7 @@ class SaveInterface {
             tmp.remove();
             this.activity.textMsg(
                 _("The Lilypond code is copied to clipboard. You can paste it here: ") +
-                    "<a href='http://hacklily.org' target='_blank'>http://hacklily.org</a> "
+                "<a href='http://hacklily.org' target='_blank'>http://hacklily.org</a> "
             );
         }
         this.download("ly", "data:text;utf8," + encodeURIComponent(lydata), filename);
