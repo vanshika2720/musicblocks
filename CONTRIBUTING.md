@@ -9,7 +9,7 @@ If you’re new to the project, start by setting up the local
 development environment using the guide linked above, then explore
 open issues or discussions to find a place to contribute.
 
-- [How to set up a local server](README.md#how-to-set-up-a-local-server)
+-   [How to set up a local server](README.md#how-to-set-up-a-local-server)
 
 ### Special Notes
 
@@ -42,12 +42,12 @@ technologies &mdash; `HTML`, `CSS` (`SCSS`), `JavaScript`, `SVG`, etc.
 If you're just getting started with development, you may refer to the
 following resources:
 
-- [HTML tutorial - w3schools.com](https://www.w3schools.com/html/default.asp)
-- [HTML reference - MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/HTML)
-- [CSS tutorial - w3schools.com](https://www.w3schools.com/css/default.asp)
-- [CSS reference - MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/CSS)
-- [JavaScript tutorial - w3schools.com](https://www.w3schools.com/js/default.asp)
-- [JavaScript reference - MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
+-   [HTML tutorial - w3schools.com](https://www.w3schools.com/html/default.asp)
+-   [HTML reference - MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/HTML)
+-   [CSS tutorial - w3schools.com](https://www.w3schools.com/css/default.asp)
+-   [CSS reference - MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/CSS)
+-   [JavaScript tutorial - w3schools.com](https://www.w3schools.com/js/default.asp)
+-   [JavaScript reference - MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
 
 Programmers, please follow these general [guidelines for
 contributions](https://github.com/sugarlabs/sugar-docs/blob/master/src/contributing.md).
@@ -62,7 +62,7 @@ npx prettier --check .    # Formatting
 npm test                  # Jest
 ```
 
-NOTE: Only run ```prettier``` on the files you have modified.
+NOTE: Only run `prettier` on the files you have modified.
 
 If formatting fails, run `npx prettier --write .` to fix it.
 
@@ -75,6 +75,17 @@ This means that even after your pull request is merged, your changes may not imm
 If your changes are not visible right away, it does **not** indicate a problem with your PR or implementation.
 
 This note is included to prevent contributors from spending time debugging caching or deployment issues unnecessarily.
+
+### Pre-commit Hooks
+
+This project uses [Husky](https://typicode.github.io/husky/) and [lint-staged](https://github.com/lint-staged/lint-staged) to run ESLint and Prettier on staged files before each commit. This helps catch linting and formatting issues early and prevents CI failures.
+
+-   **Automated Checks**: When you run `git commit`, ESLint checks your staged JavaScript files and Prettier auto-formats them. The commit will be blocked if ESLint finds errors.
+-   **Manual checks**: You can still run checks manually using the commands in the section above.
+-   **Bypassing**: If you need to bypass the pre-commit hook (e.g., for a WIP commit), you can use the `--no-verify` flag:
+    ```bash
+    git commit -m "Your message" --no-verify
+    ```
 
 ### License Header
 
@@ -130,9 +141,9 @@ Use the
 [discussions](https://github.com/sugarlabs/musicblocks/discussions)
 tab at the top of the repository to:
 
-- Ask questions you’re wondering about.
-- Share ideas.
-- Engage with other community members.
+-   Ask questions you’re wondering about.
+-   Share ideas.
+-   Engage with other community members.
 
 Feel free. But, please don't spam :p.
 
