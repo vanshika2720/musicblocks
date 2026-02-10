@@ -11,6 +11,16 @@
 
 /* global requirejs */
 
+requirejs.onError = function (err) {
+    // Prevent fatal crashes in production.
+    // Log for debugging without throwing fatals to the user.
+    console.warn("RequireJS load error:", err.requireType, err.requireModules);
+
+    if (err.requireType === "timeout") {
+        console.error("RequireJS timeout:", err.requireModules);
+    }
+};
+
 requirejs.config({
     baseUrl: "./",
     urlArgs: window.location.protocol === "file:" ? "" : "v=999999_fix5",
@@ -144,7 +154,18 @@ requirejs.config({
         "i18nextHttpBackend": [
             "lib/i18nextHttpBackend.min",
             "https://cdn.jsdelivr.net/npm/i18next-http-backend@2.5.1/i18nextHttpBackend.min"
-        ]
+        ],
+        "libgif": {
+            exports: "SuperGif"
+        },
+        "activity/gif-animator": {
+            deps: ["libgif"],
+            exports: "GIFAnimator"
+        }
+    },
+    paths: {
+        "libgif": "https://cdn.jsdelivr.net/gh/buzzfeed/libgif-js/libgif",
+        "activity/gif-animator": "js/gif-animator"
     },
     packages: []
 });
@@ -300,51 +321,24 @@ requirejs(
                     function () {
                         // Verify critical globals are initialized
                         const verificationErrors = [];
-
                         if (typeof window.createjs === "undefined") {
                             verificationErrors.push("createjs (EaselJS/TweenJS) not found");
                         }
-
-                        if (
-                            typeof window.createDefaultStack === "undefined" &&
-                            typeof arguments[5] === "undefined"
-                        ) {
+                        if (typeof window.createDefaultStack === "undefined" && typeof arguments[5] === "undefined") {
                             verificationErrors.push("createDefaultStack not initialized");
                         }
-
-                        if (
-                            typeof window.Logo === "undefined" &&
-                            typeof arguments[14] === "undefined"
-                        ) {
+                        if (typeof window.Logo === "undefined" && typeof arguments[14] === "undefined") {
                             verificationErrors.push("Logo not initialized");
                         }
-
-                        if (
-                            typeof window.Blocks === "undefined" &&
-                            typeof arguments[7] === "undefined"
-                        ) {
+                        if (typeof window.Blocks === "undefined" && typeof arguments[7] === "undefined") {
                             verificationErrors.push("Blocks not initialized");
                         }
-
-                        if (
-                            typeof window.Turtles === "undefined" &&
-                            typeof arguments[11] === "undefined"
-                        ) {
+                        if (typeof window.Turtles === "undefined" && typeof arguments[11] === "undefined") {
                             verificationErrors.push("Turtles not initialized");
                         }
 
                         if (verificationErrors.length > 0) {
-                            console.error(
-                                "FATAL: Core bootstrap verification failed:",
-                                verificationErrors
-                            );
-                            alert(
-                                "Failed to initialize Music Blocks core modules. Please refresh the page.\n\nMissing: " +
-                                    verificationErrors.join(", ")
-                            );
-                            throw new Error(
-                                "Core bootstrap failed: " + verificationErrors.join(", ")
-                            );
+                            console.error("Core bootstrap verification failed:", verificationErrors);
                         }
 
                         requirejs(
@@ -354,16 +348,11 @@ requirejs(
                             },
                             function (err) {
                                 console.error("Failed to load activity/activity:", err);
-                                alert("Failed to load Music Blocks. Please refresh the page.");
                             }
                         );
                     },
                     function (err) {
                         console.error("Core bootstrap failed:", err);
-                        alert(
-                            "Failed to initialize Music Blocks core. Please refresh the page.\n\nError: " +
-                                (err.message || err)
-                        );
                     }
                 );
             } catch (e) {

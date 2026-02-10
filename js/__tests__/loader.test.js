@@ -31,6 +31,7 @@ describe("loader.js coverage", () => {
         mockRequireJSConfig = jest.fn();
         mockRequireJS = jest.fn();
         mockRequireJS.config = mockRequireJSConfig;
+        mockRequireJS.onError = jest.fn();
         mockRequireJS.defined = jest.fn(() => false);
 
         global.requirejs = mockRequireJS;
