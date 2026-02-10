@@ -407,6 +407,7 @@ function waitForReadiness(callback, options = {}) {
 
 // Check for Internet Explorer
 
+if (typeof window !== "undefined") {
 window.onload = () => {
     const userAgent = window.navigator.userAgent;
     // For IE 10 or older
@@ -448,6 +449,7 @@ window.onload = () => {
             "<div style='width: 550px; margin: 0 auto;'><a href='https://www.chromium.org/getting-involved/download-chromium' style='float: left; display: inherit; font-family: Arial; font-size: 30px; color: #0327F1; text-decoration: none;'>Chromium</a>";
         document.body.innerHTML +=
             "<a href='https://www.google.com/chrome/' style='float: left; margin-left: 40px;display: inherit; font-family: Arial; font-size: 30px; color: #0327F1; text-decoration: none;'>Chrome</a>";
+}
         document.body.innerHTML +=
             "<a href='https://support.apple.com/downloads/safari' style='float: left; margin-left: 40px;display: inherit; font-family: Arial; font-size: 30px; color: #0327F1; text-decoration: none;'>Safari</a>";
         document.body.innerHTML +=
@@ -1775,4 +1777,11 @@ if (typeof module !== "undefined" && module.exports) {
         hexToRGB,
         hex2rgb
     };
+}
+
+// AMD module definition
+if (typeof define === "function" && define.amd) {
+    define("utils/utils", [], function () {
+        return module.exports;
+    });
 }
