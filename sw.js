@@ -75,11 +75,18 @@ self.addEventListener("fetch", function (event) {
                 // This is where we call the server to get the newest
                 // version of the file to use the next time we show view
                 event.waitUntil(
-                    fetch(event.request).then(function (response) {
-                        if (response.ok) {
-                            return updateCache(event.request, response);
-                        }
-                    })
+                    fetch(event.request)
+                        .then(function (response) {
+                            if (response.ok) {
+                                return updateCache(event.request, response);
+                            }
+                        })
+                        .catch(function (error) {
+                            console.warn(
+                                "[PWA Builder] Background fetch failed for cache update:",
+                                error
+                            );
+                        })
                 );
 
                 return response;
@@ -124,13 +131,18 @@ self.addEventListener("refreshOffline", function () {
 
     const offlinePageRequest = new Request(offlineFallbackPage);
 
-    return fetch(offlineFallbackPage).then(function (response) {
-        return caches.open(CACHE).then(function (cache) {
-            // eslint-disable-next-line no-console
-            console.log(
-                "[PWA Builder] Offline page updated from refreshOffline event: " + response.url
-            );
-            return cache.put(offlinePageRequest, response);
+    return fetch(offlineFallbackPage)
+        .then(function (response) {
+            return caches.open(CACHE).then(function (cache) {
+                // eslint-disable-next-line no-console
+                console.log(
+                    "[PWA Builder] Offline page updated from refreshOffline event: " +
+                    response.url
+                );
+                return cache.put(offlinePageRequest, response);
+            });
+        })
+        .catch(function (error) {
+            console.warn("[PWA Builder] Error updating offline page:", error);
         });
-    });
 });

@@ -149,6 +149,13 @@ requirejs.config({
     packages: []
 });
 
+requirejs.onError = function (err) {
+    console.error("RequireJS error:", err);
+    if (err.requireType === "timeout") {
+        console.error("The following modules failed to load:", err.requireModules);
+    }
+};
+
 requirejs(
     ["i18next", "i18nextHttpBackend", "jquery", "materialize", "jquery-ui"],
     function (i18next, i18nextHttpBackend, $, M) {
@@ -340,7 +347,7 @@ requirejs(
                             );
                             alert(
                                 "Failed to initialize Music Blocks core modules. Please refresh the page.\n\nMissing: " +
-                                    verificationErrors.join(", ")
+                                verificationErrors.join(", ")
                             );
                             throw new Error(
                                 "Core bootstrap failed: " + verificationErrors.join(", ")
@@ -362,7 +369,7 @@ requirejs(
                         console.error("Core bootstrap failed:", err);
                         alert(
                             "Failed to initialize Music Blocks core. Please refresh the page.\n\nError: " +
-                                (err.message || err)
+                            (err.message || err)
                         );
                     }
                 );
