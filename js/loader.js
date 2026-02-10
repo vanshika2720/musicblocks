@@ -119,6 +119,13 @@ requirejs.config({
         },
         "highlight": {
             exports: "hljs"
+        },
+        "activity/gif-animator": {
+            deps: ["libgif"],
+            exports: "GIFAnimator"
+        },
+        "activity/logoconstants": {
+            exports: "logoconstants"
         }
     },
     paths: {
@@ -147,6 +154,7 @@ requirejs.config({
         "libgif": "https://cdn.jsdelivr.net/gh/buzzfeed/libgif-js/libgif",
         "Tone": "lib/Tone",
         "highlight": "//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min",
+        "activity/gif-animator": "js/gif-animator",
         "i18next": [
             "lib/i18next.min",
             "https://cdn.jsdelivr.net/npm/i18next@23.11.5/dist/umd/i18next.min"
@@ -154,18 +162,7 @@ requirejs.config({
         "i18nextHttpBackend": [
             "lib/i18nextHttpBackend.min",
             "https://cdn.jsdelivr.net/npm/i18next-http-backend@2.5.1/i18nextHttpBackend.min"
-        ],
-        "libgif": {
-            exports: "SuperGif"
-        },
-        "activity/gif-animator": {
-            deps: ["libgif"],
-            exports: "GIFAnimator"
-        }
-    },
-    paths: {
-        "libgif": "https://cdn.jsdelivr.net/gh/buzzfeed/libgif-js/libgif",
-        "activity/gif-animator": "js/gif-animator"
+        ]
     },
     packages: []
 });
@@ -271,6 +268,7 @@ requirejs(
                     { name: "libgif", export: () => window.SuperGif },
                     { name: "activity/gif-animator", export: () => window.GIFAnimator },
                     { name: "utils/platformstyle", export: null },
+                    { name: "activity/logoconstants", export: () => window.logoconstants },
                     { name: "utils/utils", export: () => window._ },
                     { name: "utils/musicutils", export: null },
                     { name: "utils/synthutils", export: () => window.Synth },
@@ -302,6 +300,9 @@ requirejs(
                     "easeljs.min",
                     "tweenjs.min",
                     "preloadjs.min",
+                    "libgif",
+                    "activity/gif-animator",
+                    "activity/logoconstants",
                     "utils/platformstyle",
                     "utils/utils",
                     "activity/turtledefs",
