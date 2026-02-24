@@ -82,6 +82,9 @@ requirejs.config({
         "activity/notation": {
             exports: "Notation"
         },
+        "activity/logoconstants": {
+            deps: ["utils/utils"]
+        },
         "utils/synthutils": {
             deps: ["utils/utils"],
             exports: "Synth"
