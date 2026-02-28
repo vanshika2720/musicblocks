@@ -65,6 +65,7 @@ class ReflectionMatrix {
          * @type {string}
          */
         this.code = "";
+        this.blockNo = null;
     }
 
     /**
@@ -146,6 +147,11 @@ class ReflectionMatrix {
             _("Refresh")
         );
         this.reloadButton.onclick = () => this.updateProjectCode();
+
+        widgetWindow.addButton("help-button.svg", ReflectionMatrix.ICONSIZE, _("Help")).onclick =
+            () => {
+                new HelpWidget(this.activity, this.blockNo);
+            };
 
         this.changeMentor(this.AImentor);
 

@@ -41,8 +41,9 @@ class Oscilloscope {
     static ICONSIZE = 40;
     static analyserSize = 8192;
 
-    constructor(activity) {
+    constructor(activity, blockNo) {
         this.activity = activity;
+        this.blockNo = blockNo;
 
         // RAF lifecycle control
         this._running = false;
@@ -90,6 +91,14 @@ class Oscilloscope {
         zoomOutButton.children[0].src = `data:image/svg+xml;base64,${window.btoa(
             base64Encode(SMALLERBUTTON)
         )}`;
+
+        widgetWindow.addButton("help-button.svg", Oscilloscope.ICONSIZE, _("Help")).onclick =
+            () => {
+                if (this.blockNo !== null) {
+                    this.activity.blocks.activeBlock = this.blockNo;
+                    new HelpWidget(this.activity, true);
+                }
+            };
 
         widgetWindow.sendToCenter();
 

@@ -46,6 +46,7 @@ class PitchStaircase {
         this._stepTables = [];
         this._musicRatio1 = null;
         this._musicRatio2 = null;
+        this.blockNo = null;
     }
 
     /**
@@ -657,6 +658,11 @@ class PitchStaircase {
         widgetWindow.addButton("erase-button.svg", PitchStaircase.ICONSIZE, _("Clear")).onclick =
             () => {
                 while (this._undo());
+            };
+
+        widgetWindow.addButton("help-button.svg", PitchStaircase.ICONSIZE, _("Help")).onclick =
+            () => {
+                new HelpWidget(this.activity, this.blockNo);
             };
 
         // The pitch-staircase (psc) table

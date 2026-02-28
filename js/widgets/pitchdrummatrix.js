@@ -103,6 +103,7 @@ class PitchDrumMatrix {
         // We populate the blockMap whenever a node is selected and
         // restore any nodes that might be present.
         this._blockMap = [];
+        this.blockNo = null;
     }
 
     /**
@@ -175,6 +176,14 @@ class PitchDrumMatrix {
         widgetWindow.addButton("erase-button.svg", PitchDrumMatrix.ICONSIZE, _("Clear")).onclick =
             () => {
                 this._clear();
+            };
+
+        widgetWindow.addButton("help-button.svg", PitchDrumMatrix.ICONSIZE, _("Help")).onclick =
+            () => {
+                if (this.blockNo !== null) {
+                    this.activity.blocks.activeBlock = this.blockNo;
+                    new HelpWidget(this.activity, true);
+                }
             };
 
         /**

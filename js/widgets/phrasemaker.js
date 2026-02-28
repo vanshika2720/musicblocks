@@ -268,6 +268,7 @@ class PhraseMaker {
          * @type {boolean}
          */
         this.lyricsON = false;
+        this.blockNo = null;
     }
 
     /**
@@ -460,6 +461,11 @@ class PhraseMaker {
 
         widgetWindow.addButton("sort.svg", PhraseMaker.ICONSIZE, this._("Sort")).onclick =
             this._sort.bind(this);
+
+        widgetWindow.addButton("help-button.svg", PhraseMaker.ICONSIZE, this._("Help")).onclick =
+            () => {
+                new HelpWidget(this.activity, this.blockNo);
+            };
 
         let cell = widgetWindow.addButton("add2.svg", PhraseMaker.ICONSIZE, this._("Add note"));
         cell.setAttribute("id", "addnotes");

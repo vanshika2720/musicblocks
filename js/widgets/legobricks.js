@@ -312,6 +312,13 @@ function LegoWidget() {
             this._clearPhrase();
         };
 
+        widgetWindow.addButton("help-button.svg", ICONSIZE, _("Help")).onclick = () => {
+            if (this.blockNo !== null) {
+                this.activity.blocks.activeBlock = this.blockNo;
+                new HelpWidget(this.activity, true);
+            }
+        };
+
         // Create main container
         this.createMainContainer();
 

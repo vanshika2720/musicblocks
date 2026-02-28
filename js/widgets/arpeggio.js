@@ -45,6 +45,7 @@ class Arpeggio {
         // These arrays get created each time the matrix is built.
         this._blockMap = []; // pairs storage
         this.defaultCols = Arpeggio.DEFAULTCOLS;
+        this.blockNo = null;
     }
 
     /**
@@ -104,6 +105,13 @@ class Arpeggio {
 
         widgetWindow.addButton("erase-button.svg", Arpeggio.ICONSIZE, _("Clear")).onclick = () => {
             this._clear();
+        };
+
+        widgetWindow.addButton("help-button.svg", Arpeggio.ICONSIZE, _("Help")).onclick = () => {
+            if (this.blockNo !== null) {
+                this._activity.blocks.activeBlock = this.blockNo;
+                new HelpWidget(this._activity, true);
+            }
         };
 
         this.arpeggioDiv = document.createElement("div");

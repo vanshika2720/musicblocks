@@ -42,6 +42,7 @@ class Tempo {
         this.BPMInputs = [];
         this.BPMBlocks = [];
         this.tempoCanvases = [];
+        this.blockNo = null;
     }
 
     init(activity) {
@@ -115,6 +116,10 @@ class Tempo {
                 this._saveTempo();
                 setTimeout(() => (this._save_lock = false), 1000);
             }
+        };
+
+        widgetWindow.addButton("help-button.svg", Tempo.ICONSIZE, _("Help")).onclick = () => {
+            new HelpWidget(this.activity, this.blockNo);
         };
 
         this.bodyTable = document.createElement("table");

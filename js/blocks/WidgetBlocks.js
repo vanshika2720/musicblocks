@@ -85,7 +85,12 @@ function setupWidgetBlocks(activity) {
             //.TRANS: sound envelope (ADSR)
             super("envelope", _("Envelope").toLowerCase());
             this.setPalette("widgets", activity);
-            this.setHelpString();
+            this.setHelpString([
+                _("The Envelope block opens a tool to customize the sound envelope (ADSR)."),
+                "documentation",
+                null,
+                "envelope"
+            ]);
             this.formBlock({
                 args: 4,
                 defaults: [1, 50, 60, 1],
@@ -175,7 +180,12 @@ function setupWidgetBlocks(activity) {
             //.TRANS: a filter removes some unwanted components from a signal
             super("filter", _("Filter").toLowerCase());
             this.setPalette("widgets", activity);
-            this.setHelpString();
+            this.setHelpString([
+                _("The Filter block opens a tool to customize sound filters."),
+                "documentation",
+                null,
+                "filter"
+            ]);
             this.formBlock({
                 args: 3,
                 defaults: [_("highpass"), -12, 392],
@@ -288,6 +298,7 @@ function setupWidgetBlocks(activity) {
             if (logo.temperament === null) {
                 logo.temperament = new TemperamentWidget();
             }
+            logo.temperament.blockNo = blk;
 
             logo.insideTemperament = true;
             logo.temperament.inTemperament = args[0];
@@ -367,8 +378,8 @@ function setupWidgetBlocks(activity) {
             if (logo.sample === null) {
                 logo.sample = new SampleWidget();
             }
+            logo.sample.blockNo = blk;
             logo.inSample = true;
-            logo.sample = new SampleWidget();
 
             const listenerName = "_sampler_" + turtle;
             logo.setDispatchBlock(blk, turtle, listenerName);
@@ -395,7 +406,14 @@ function setupWidgetBlocks(activity) {
         constructor() {
             super("timbre");
             this.setPalette("widgets", activity);
-            this.setHelpString();
+            this.setHelpString([
+                _(
+                    "The Timbre block opens a tool to customize the sound character (envelope, filters, etc.)."
+                ),
+                "documentation",
+                null,
+                "timbre"
+            ]);
 
             this.formBlock({
                 //.TRANS: timbre is the character or quality of a musical sound
@@ -450,6 +468,7 @@ function setupWidgetBlocks(activity) {
             if (logo.timbre === null) {
                 logo.timbre = new TimbreWidget();
             }
+            logo.timbre.blockNo = blk;
 
             logo.inTimbre = true;
 
@@ -624,7 +643,7 @@ function setupWidgetBlocks(activity) {
             logo.setDispatchBlock(blk, turtle, listenerName);
 
             const __listener = () => {
-                logo.Oscilloscope = new Oscilloscope(activity);
+                logo.Oscilloscope = new Oscilloscope(activity, blk);
                 logo.inOscilloscope = false;
             };
 
@@ -681,7 +700,7 @@ function setupWidgetBlocks(activity) {
             logo.setDispatchBlock(blk, turtle, listenerName);
 
             const __listener = () => {
-                logo.modeWidget = new ModeWidget(activity);
+                logo.modeWidget = new ModeWidget(activity, blk);
                 logo.insideModeWidget = false;
             };
 
@@ -737,6 +756,7 @@ function setupWidgetBlocks(activity) {
             if (logo.tempo === null) {
                 logo.tempo = new Tempo();
             }
+            logo.tempo.blockNo = blk;
 
             logo.inTempo = true;
             logo.tempo.BPMBlocks = [];
@@ -767,9 +787,10 @@ function setupWidgetBlocks(activity) {
             super("arpeggiomatrix");
             this.setPalette("widgets", activity);
             this.setHelpString([
-                _("The Arpeggio Widget is used to compose chord sequences."),
+                _("The Arpeggio Matrix block opens a tool to create and play arpeggio sequences."),
                 "documentation",
-                ""
+                null,
+                "arpeggiomatrix"
             ]);
 
             this.formBlock({
@@ -806,6 +827,7 @@ function setupWidgetBlocks(activity) {
             if (logo.arpeggio === null) {
                 logo.arpeggio = new Arpeggio();
             }
+            logo.arpeggio.blockNo = blk;
 
             logo.inArpeggio = true;
 
@@ -880,6 +902,7 @@ function setupWidgetBlocks(activity) {
             if (logo.pitchDrumMatrix === null) {
                 logo.pitchDrumMatrix = new PitchDrumMatrix();
             }
+            logo.pitchDrumMatrix.blockNo = blk;
 
             logo.inPitchDrumMatrix = true;
             logo.pitchDrumMatrix.rowLabels = [];
@@ -953,6 +976,7 @@ function setupWidgetBlocks(activity) {
             if (logo.pitchSlider === null) {
                 logo.pitchSlider = new PitchSlider();
             }
+            logo.pitchSlider.blockNo = blk;
 
             logo.inPitchSlider = true;
             logo.pitchSlider.frequencies = [];
@@ -1102,7 +1126,7 @@ function setupWidgetBlocks(activity) {
          */
         flow(args, logo, turtle, blk) {
             if (logo.musicKeyboard === null) {
-                logo.musicKeyboard = new MusicKeyboard(activity);
+                logo.musicKeyboard = new MusicKeyboard(activity, blk);
             }
 
             logo.inMusicKeyboard = true;
@@ -1168,6 +1192,7 @@ function setupWidgetBlocks(activity) {
             if (logo.pitchStaircase === null) {
                 logo.pitchStaircase = new PitchStaircase();
             }
+            logo.pitchStaircase.blockNo = blk;
 
             logo.pitchStaircase.Stairs = [];
             logo.pitchStaircase.stairPitchBlocks = [];
@@ -1275,6 +1300,7 @@ function setupWidgetBlocks(activity) {
             if (logo.rhythmRuler == null) {
                 logo.rhythmRuler = new RhythmRuler();
             }
+            logo.rhythmRuler.blockNo = blk;
 
             logo.rhythmRuler.Rulers = [];
             logo.rhythmRuler.Drums = [];
@@ -1614,6 +1640,7 @@ function setupWidgetBlocks(activity) {
             if (logo.statusMatrix === null) {
                 logo.statusMatrix = new StatusMatrix();
             }
+            logo.statusMatrix.blockNo = blk;
 
             logo.statusMatrix.init(activity);
             logo.statusFields = [];
@@ -1677,7 +1704,7 @@ function setupWidgetBlocks(activity) {
                 logo.sample = new AIWidget();
             }
             logo.inSample = true;
-            logo.sample = new AIWidget();
+            logo.sample.blockNo = blk;
 
             const listenerName = "_sampler_" + turtle;
             logo.setDispatchBlock(blk, turtle, listenerName);
@@ -1727,6 +1754,7 @@ function setupWidgetBlocks(activity) {
             if (logo.reflection === null) {
                 logo.reflection = new ReflectionMatrix();
             }
+            logo.reflection.blockNo = blk;
 
             logo.reflection.init(activity);
             logo.statusFields = [];
@@ -1863,17 +1891,16 @@ function setupWidgetBlocks(activity) {
          * @returns {number[]} - The output values.
          */
         flow(args, logo, turtle, blk) {
-            if (logo.sample === null) {
-                logo.sample = new AIDebuggerWidget();
+            if (logo.aiDebuggerWidget === null || logo.aiDebuggerWidget === undefined) {
+                logo.aiDebuggerWidget = new AIDebuggerWidget();
             }
-            logo.inSample = true;
-            logo.sample = new AIDebuggerWidget();
+            logo.aiDebuggerWidget.blockNo = blk;
 
-            const listenerName = "_sampler_" + turtle;
+            const listenerName = "_aidebugger_" + turtle;
             logo.setDispatchBlock(blk, turtle, listenerName);
 
             const __listener = event => {
-                logo.sample.init(activity);
+                logo.aiDebuggerWidget.init(activity);
             };
 
             logo.setTurtleListener(turtle, listenerName, __listener);

@@ -73,6 +73,7 @@ function TemperamentWidget() {
      * @type {string|null}
      */
     this.lastTriggered = null;
+    this.blockNo = null;
 
     /**
      * Array of notes.
@@ -2161,6 +2162,10 @@ function TemperamentWidget() {
         this.widgetWindow = widgetWindow;
         widgetWindow.clear();
         widgetWindow.show();
+
+        widgetWindow.addButton("help-button.svg", ICONSIZE, _("Help")).onclick = () => {
+            new HelpWidget(this.activity, this.blockNo);
+        };
 
         widgetWindow.getWidgetBody().append(temperamentTableDiv);
         widgetWindow.getWidgetBody().style.height = "500px";

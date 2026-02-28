@@ -48,6 +48,7 @@ function SampleWidget() {
      * @type {number | null}
      */
     this.timbreBlock;
+    this.blockNo = null;
 
     /**
      * Array to store sample-related data.
@@ -590,6 +591,13 @@ function SampleWidget() {
                 setTimeout(function () {
                     that._save_lock = false;
                 }, 1000);
+            }
+        };
+
+        widgetWindow.addButton("help-button.svg", ICONSIZE, _("Help")).onclick = () => {
+            if (this.blockNo !== null) {
+                this.activity.blocks.activeBlock = this.blockNo;
+                new HelpWidget(this.activity, true);
             }
         };
 

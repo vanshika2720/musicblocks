@@ -34,8 +34,9 @@ class ModeWidget {
     static ROTATESPEED = 125;
     static BUTTONDIVWIDTH = 535;
 
-    constructor(activity) {
+    constructor(activity, blockNo = null) {
         this.activity = activity;
+        this.blockNo = blockNo;
         this._modeBlock = this.activity.logo.modeBlock;
         this._locked = false;
         this._pitch = this.activity.turtles.ithTurtle(0).singer.keySignature[0];
@@ -128,6 +129,11 @@ class ModeWidget {
 
         this.widgetWindow.addButton("restore-button.svg", ModeWidget.ICONSIZE, _("Undo")).onclick =
             this._undo.bind(this);
+
+        this.widgetWindow.addButton("help-button.svg", ModeWidget.ICONSIZE, _("Help")).onclick =
+            () => {
+                new HelpWidget(this.activity, this.blockNo);
+            };
 
         this._piemenuMode();
 

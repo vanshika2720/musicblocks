@@ -69,6 +69,7 @@ function AIDebuggerWidget() {
      * @type {object}
      */
     this.widgetWindow = null;
+    this.blockNo = null;
 
     /**
      * Chat log container
@@ -135,6 +136,13 @@ function AIDebuggerWidget() {
         this._exportButton = widgetWindow.addButton("download.svg", ICONSIZE, _("Export chat"));
         this._exportButton.onclick = () => {
             this._exportChat();
+        };
+
+        widgetWindow.addButton("help-button.svg", ICONSIZE, _("Help")).onclick = () => {
+            if (this.blockNo !== null) {
+                this.activity.blocks.activeBlock = this.blockNo;
+                new HelpWidget(this.activity, true);
+            }
         };
 
         this._createLayout();

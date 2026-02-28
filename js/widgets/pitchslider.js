@@ -35,6 +35,7 @@ class PitchSlider {
         this._cellScale = 0;
         this.isActive = false;
         this.activeSlider = null;
+        this.blockNo = null;
     }
 
     /**
@@ -182,6 +183,15 @@ class PitchSlider {
                 toolBarDiv
             ).onclick = () => {
                 this._save(this.frequencies[id]);
+            };
+
+            this.widgetWindow.addButton(
+                "help-button.svg",
+                PitchSlider.ICONSIZE,
+                _("Help"),
+                toolBarDiv
+            ).onclick = () => {
+                new HelpWidget(this.activity, this.blockNo);
             };
         };
 

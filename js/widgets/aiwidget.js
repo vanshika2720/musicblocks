@@ -114,6 +114,12 @@ function AIWidget() {
     this.pitchAnalysers = {};
 
     /**
+     * Block number for the help widget.
+     * @type {number|null}
+     */
+    this.blockNo = null;
+
+    /**
      * Pauses the sample playback.
      * @returns {void}
      */
@@ -844,6 +850,10 @@ function AIWidget() {
                     }, 1000);
                 }
             };
+
+        widgetWindow.addButton("help-button.svg", ICONSIZE, _("Help")).onclick = () => {
+            new HelpWidget(this.activity, this.blockNo);
+        };
 
         widgetWindow.sendToCenter();
         this.widgetWindow = widgetWindow;

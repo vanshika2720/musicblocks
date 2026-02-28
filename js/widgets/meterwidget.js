@@ -91,6 +91,12 @@ class MeterWidget {
         this.activity = activity;
 
         /**
+         * Block number for the help widget.
+         * @type {number}
+         */
+        this.blockNo = widgetBlock;
+
+        /**
          * The meter block.
          *
          * @type {number}
@@ -223,6 +229,13 @@ class MeterWidget {
             () => {
                 this._save();
             };
+
+        widgetWindow.addButton("help-button.svg", MeterWidget.ICONSIZE, _("Help")).onclick = () => {
+            if (this.blockNo !== null) {
+                this.activity.blocks.activeBlock = this.blockNo;
+                new HelpWidget(this.activity, true);
+            }
+        };
 
         // The pie menu goes here.
         const meterTableDiv = this.meterDiv;

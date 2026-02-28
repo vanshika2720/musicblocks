@@ -742,6 +742,14 @@ class TimbreWidget {
                 this._save();
             };
 
+        widgetWindow.addButton("help-button.svg", TimbreWidget.ICONSIZE, _("Help")).onclick =
+            () => {
+                if (this.blockNo !== null) {
+                    this.activity.blocks.activeBlock = this.blockNo;
+                    new HelpWidget(this.activity, true);
+                }
+            };
+
         let _unhighlightButtons; // defined later to avoid circular dependency
 
         const synthButtonCell = widgetWindow.addButton(

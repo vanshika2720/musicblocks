@@ -39,6 +39,12 @@ class StatusMatrix {
         this.widgetWindow = window.widgetWindows.windowFor(this, "status", "status");
         this.widgetWindow.clear();
         this.widgetWindow.show();
+        this.blockNo = null;
+
+        this.widgetWindow.addButton("help-button.svg", StatusMatrix.ICONSIZE, _("Help")).onclick =
+            () => {
+                new HelpWidget(this.activity, this.blockNo);
+            };
         // For the button callbacks
         let cell;
 

@@ -66,6 +66,7 @@ function MusicKeyboard(activity) {
      * @type {Activity}
      */
     this.activity = activity;
+    this.blockNo = null;
 
     /**
      * Scale factor for adjusting the cell size.
@@ -699,6 +700,13 @@ function MusicKeyboard(activity) {
             this._createTable();
             this._updateWidgetWindowSize();
             // }
+        };
+
+        widgetWindow.addButton("help-button.svg", ICONSIZE, _("Help")).onclick = () => {
+            if (this.blockNo !== null) {
+                this.activity.blocks.activeBlock = this.blockNo;
+                new HelpWidget(this.activity, true);
+            }
         };
 
         /**

@@ -277,6 +277,7 @@ class RhythmRuler {
          * @private
          */
         this._fullscreenScaleFactor = 3;
+        this.blockNo = null;
     }
 
     /**
@@ -575,6 +576,10 @@ class RhythmRuler {
          */
         widgetWindow.addButton("erase-button.svg", iconSize, _("Clear")).onclick = () => {
             this._clear();
+        };
+
+        widgetWindow.addButton("help-button.svg", iconSize, _("Help")).onclick = () => {
+            new HelpWidget(this.activity, this.blockNo);
         };
 
         /**
