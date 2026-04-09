@@ -5844,8 +5844,7 @@ const durationToNoteValue = duration => {
  * @returns {Array} An array containing pitch and octave.
  */
 const noteToPitchOctave = note => {
-    const len = note.length;
-    return [note.substring(0, len - 1), Number(last(note))];
+    return _parse_pitch_string(note);
 };
 
 /**
@@ -6494,6 +6493,18 @@ if (typeof module !== "undefined" && module.exports) {
         NOTESTEP,
         MUSICALMODES,
         SHARP,
-        FLAT
+        FLAT,
+        DOUBLESHARP,
+        DOUBLEFLAT,
+        A0,
+        TWELTHROOT2,
+        TWELVEHUNDRETHROOT2,
+        SOLFEGECONVERSIONTABLE,
+        FIXEDSOLFEGE1,
+        EQUIVALENTNATURALS,
+        PITCHES,
+        PITCHES1,
+        SOLFEGENAMES,
+        CHROMATIC_SOLFEGE
     };
 }

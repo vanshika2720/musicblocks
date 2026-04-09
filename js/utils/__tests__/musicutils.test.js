@@ -1712,22 +1712,22 @@ describe("noteToPitchOctave", () => {
 
     it("should correctly extract pitch and octave from a note string with a sharp note", () => {
         const result = noteToPitchOctave("C#5");
-        expect(result).toEqual(["C#", 5]); // Pitch is 'C#' and octave is 5
+        expect(result).toEqual(["C♯", 5]); // Pitch is 'C♯' and octave is 5 (normalized)
     });
 
     it("should correctly extract pitch and octave from a note string with a flat note", () => {
         const result = noteToPitchOctave("Db6");
-        expect(result).toEqual(["Db", 6]); // Pitch is 'Db' and octave is 6
+        expect(result).toEqual(["D♭", 6]); // Pitch is 'D♭' and octave is 6 (normalized)
     });
 
     it("should correctly handle a note string with a lowercase pitch", () => {
         const result = noteToPitchOctave("g3");
-        expect(result).toEqual(["g", 3]); // Pitch is 'g' and octave is 3
+        expect(result).toEqual(["G", 3]); // Pitch is 'G' (normalized) and octave is 3
     });
 
     it("should handle multi-character note names with no octave", () => {
         const result = noteToPitchOctave("B#");
-        expect(result).toEqual(["B", NaN]); // No octave, returns NaN for octave
+        expect(result).toEqual(["B♯", 4]); // No octave, defaults to 4, normalized to ♯
     });
 });
 
@@ -1766,7 +1766,8 @@ describe("noteToFrequency", () => {
     });
 
     it("handles invalid note input gracefully", () => {
-        expect(noteToFrequency("X9", "C")).toBe(A0 * Math.pow(TWELTHROOT2, 99));
+        // "X9" doesn't match A-G, so it falls back to the literal string "X9" with default octave 4
+        expect(noteToFrequency("X9", "C")).toBe(A0 * Math.pow(TWELTHROOT2, 39));
     });
 });
 
