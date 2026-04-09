@@ -3,6 +3,50 @@ body.dark {
     color: var(--text-primary);
 }
 
+/* High Contrast Mode Overrides */
+body.highcontrast {
+    --bg: #000000;
+    --fg: #ffffff;
+    --overlay-bg: rgba(0, 0, 0, 0.9);
+
+    background: var(--bg);
+    color: var(--fg);
+}
+
+/* High contrast icon styles */
+.highcontrast .material-icons {
+    color: #ffffff !important;
+    text-shadow: none !important;
+}
+
+/* High contrast hover box outlines */
+.highcontrast .tooltip,
+.highcontrast .hover-box {
+    border: 2px solid #ffff00 !important;
+    box-shadow: 0 0 10px #ffff00 !important;
+}
+
+.highcontrast #helpBodyDiv {
+    background: #000000;
+    color: var(--fg);
+    border: 1px solid #ffffff;
+}
+
+.highcontrast #helpBodyDiv > .heading,
+.highcontrast #helpBodyDiv p {
+    color: var(--fg);
+}
+
+.highcontrast #floatingWindows .wfWinBody {
+    background-color: var(--bg) !important;
+}
+
+.highcontrast #floatingWindows .windowFrame {
+    background-color: var(--bg) !important;
+    border: 1px solid #ffffff;
+}
+
+/* Help widget colors */
 .dark #helpBodyDiv {
     background: var(--background-secondary);
     color: var(--text-primary);
