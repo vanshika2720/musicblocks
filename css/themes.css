@@ -8,12 +8,12 @@
 }
 
 #themedropdown a {
-    color: #2196f3;
+    color: var(--accent-primary);
     transition: all 0.3s ease;
 }
 
 #themedropdown a:hover {
-    color: #1e88e5;
+    color: var(--accent-hover);
     background-color: transparent;
     transition: all 0.3s ease;
 }
@@ -34,15 +34,15 @@
 /* Dark Mode */
 
 .dark .blue {
-    background-color: #022363 !important;
+    background-color: var(--background-secondary) !important;
 }
 
 .dark #canvas {
-    background-color: #1c1c1c !important;
+    background-color: var(--background-primary) !important;
 }
 
 .dark .blue.darken-1 {
-    background-color: #01143b !important;
+    background-color: var(--background-secondary) !important;
 }
 
 .dark #floatingWindows > .windowFrame {
@@ -51,7 +51,7 @@
 }
 
 .dark .wfbtItem {
-    background-color: #225a91;
+    background-color: var(--accent-hover);
 }
 
 .dark #floatingWindows > .windowFrame > .wfTopBar .wftTitle {
@@ -59,17 +59,17 @@
 }
 
 .dark #floatingWindows > .windowFrame > .wfWinBody .wfbWidget {
-    color: #ccc !important;
-    background-color: #505050 !important;
+    color: var(--text-secondary) !important;
+    background-color: var(--background-tertiary) !important;
 }
 
 .dark .popupMsg {
-    background-color: #084e86;
-    color: #e8e8e8;
+    background-color: var(--accent-secondary);
+    color: var(--text-on-accent);
 }
 
 .dark #printText {
-    border-color: #000000;
+    border-color: var(--border-primary);
 }
 
 .dark #loading-image-container {
@@ -77,11 +77,11 @@
 }
 
 .dark #loadingText {
-    color: white !important;
+    color: var(--text-primary) !important;
 }
 
 .dark .language-link {
-    color: #fff;
+    color: var(--text-primary);
 }
 
 .modal-content {
@@ -90,18 +90,18 @@
 }
 
 .dark #submitLilypond {
-    background-color: rgb(0, 102, 255);
+    background-color: var(--accent-primary);
 }
 
 .dark #search,
 .dark #helpfulSearch,
 .dark .ui-autocomplete {
-    background-color: #1c1c1c !important;
-    color: #fff !important;
+    background-color: var(--background-secondary) !important;
+    color: var(--text-primary) !important;
 }
 
 .dark .ui-autocomplete li:hover {
-    background-color: #225a91 !important;
+    background-color: var(--accent-hover) !important;
 }
 
 .dark #helpfulSearchDiv {
@@ -109,85 +109,137 @@
 }
 
 .dark #crossButton {
-    color: #fff;
+    color: var(--text-primary);
 }
 
 .dark #chooseKeyDiv {
-    background: #333;
+    background: var(--background-secondary);
 }
 
 .dark #movable {
-    background: #333;
-    color: white;
+    background: var(--background-secondary);
+    color: var(--text-primary);
 }
 
 .dark .dropdown-content li > a {
-    background-color: #1c1c1c;
-    color: #3fe0d1;
+    background-color: var(--background-primary);
+    color: var(--accent-secondary);
 }
 
 .dark .dropdown-content li > a:hover {
-    background-color: #333;
+    background-color: var(--background-secondary);
 }
 
 .dark .dropdown-content {
-    background-color: #1c1c1c;
+    background-color: var(--background-primary);
 }
 
 .dark .modalBox {
-    background-color: #1c1c1c;
+    background-color: var(--surface-primary);
 }
 
 .dark .modal-message {
-    color: #e2e2e2;
-    background-color: #1c1c1c;
+    color: var(--text-primary);
+    background-color: var(--surface-primary);
 }
 
 .dark #newdropdown {
-    border: #000000;
-    background-color: #1c1c1c;
+    border: var(--border-primary);
+    background-color: var(--surface-primary);
 }
 
 .dark #newdropdown li {
-    background-color: #1c1c1c;
+    background-color: var(--surface-primary);
 }
 
 .dark #newdropdown li:hover {
-  background-color: transparent !important;
+    background-color: transparent !important;
 }
 
 .dark #confirmation-message {
-    color: #e2e2e2;
+    color: var(--text-primary);
 }
 
-body {
-    --border: #cccccc;
-    --bg: #ffffff;
-    --fg: #666666;
-    --panel-bg: #f5f5f5;
-    --accent: #2196f3;
+:root {
+    /* Core Backgrounds */
+    --background-primary: #ffffff;
+    --background-secondary: #f8fafc;
+    --background-tertiary: #f1f5f9;
+    --background-overlay: rgba(255, 255, 255, 0.8);
+
+    /* Surface Colors (Modals, Panels) */
+    --surface-primary: #ffffff;
+    --surface-secondary: #fefefe;
+
+    /* Text Colors */
+    --text-primary: #1e293b;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    --text-on-accent: #ffffff;
+
+    /* Borders */
+    --border-primary: #e2e8f0;
+    --border-secondary: #f1f5f9;
+
+    /* Accents */
+    --accent-primary: #2196f3;
+    --accent-hover: #1e88e5;
+    --accent-secondary: #3fe0d1;
+
+    /* Legacy compatibility mappings */
+    --bg: var(--background-primary);
+    --fg: var(--text-primary);
+    --border: var(--border-primary);
+    --panel-bg: var(--background-secondary);
+    --accent: var(--accent-primary);
 }
 
-body.dark {
-    --border: #000000;
-    --bg: #1d1d20;
-    --fg: #e8e8e8;
-    --panel-bg: #1c1c1c;
-    --accent: #3fe0d1;
+.dark {
+    /* Core Backgrounds */
+    --background-primary: #0f172a;
+    --background-secondary: #1e293b;
+    --background-tertiary: #334155;
+    --background-overlay: rgba(15, 23, 42, 0.8);
+
+    /* Surface Colors (Modals, Panels) */
+    --surface-primary: #1e293b;
+    --surface-secondary: #334155;
+
+    /* Text Colors */
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-muted: #64748b;
+    --text-on-accent: #0f172a;
+
+    /* Borders */
+    --border-primary: #334155;
+    --border-secondary: #1e293b;
+
+    /* Accents */
+    --accent-primary: #3fe0d1;
+    --accent-hover: #34c7ba;
+    --accent-secondary: #2196f3;
+
+    /* Legacy compatibility mappings */
+    --bg: var(--background-primary);
+    --fg: var(--text-primary);
+    --border: var(--border-primary);
+    --panel-bg: var(--background-secondary);
+    --accent: var(--accent-primary);
 }
 
 /* Your Custom Theme can go here if you don't want to modify the existing dark mode */
 
 /* Selected language highlight in language dropdown */
 #languagedropdown li a.selected-language {
-  background-color: rgba(33, 150, 243, 0.15);
-  border-left: 3px solid #2196F3;
-  font-weight: 600;
+    background-color: rgba(33, 150, 243, 0.15);
+    border-left: 3px solid #2196f3;
+    font-weight: 600;
 }
 
 .dark #languagedropdown li a.selected-language {
-  background-color: rgba(33, 150, 243, 0.25);
-  border-left: 3px solid #64B5F6;
+    background-color: rgba(33, 150, 243, 0.25);
+    border-left: 3px solid #64b5f6;
 }
 
 /* Dark Mode Tooltip Styling - Slightly lighter background for better contrast */
