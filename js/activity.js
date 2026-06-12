@@ -120,7 +120,7 @@ let MYDEFINES = [
     "activity/rubrics",
     "activity/macros",
     "activity/SaveInterface",
-    "activity/activity/exporters",
+    "activity/exporters",
     "activity/recorder",
     "utils/musicutils",
     "utils/synthutils",
@@ -1355,6 +1355,9 @@ class Activity {
             this.sendAllToTrash(true, true);
         };
 
+        /**
+         * @returns {SVG} returns SVG of blocks
+         */
         this.printBlockSVG = () => {
             return window.printBlockSVG(this);
         };
