@@ -55,7 +55,7 @@ try {
    MUSICALMODES, waitForReadiness, i18next, wheelnav, slicePath,
    base64Encode, disableHorizScrollIcon, toFraction, CARTESIANBUTTON,
    SELECTBUTTON, CLEARBUTTON, piemenuGrid, Midi, ABCJS, ensureABCJS,
-   extractProjectDataFromHTML,unescapeHTML
+   extractProjectDataFromHTML,unescapeHTML, pubsub
  */
 
 /*
@@ -4542,7 +4542,7 @@ class Activity {
          * @param env {specifies environment}
          */
         this.runProject = env => {
-            document.removeEventListener("finishedLoading", this.runProject);
+            pubsub.off("finishedLoading", this.runProject);
 
             const that = this;
             setTimeout(() => {
@@ -4623,7 +4623,7 @@ class Activity {
                     that.keyboardEnableFlag = 1;
                 }
 
-                document.removeEventListener("finishedLoading", __afterLoad);
+                pubsub.off("finishedLoading", __afterLoad);
             };
 
             // Set the flag to zero to disable keyboard
@@ -4649,11 +4649,7 @@ class Activity {
 
             // After we have finished loading the project, clear all
             // to ensure a clean start.
-            if (document.addEventListener) {
-                document.addEventListener("finishedLoading", __afterLoad);
-            } else {
-                document.attachEvent("finishedLoading", __afterLoad);
-            }
+            pubsub.on("finishedLoading", __afterLoad);
 
             if (that.sessionData) {
                 that.doLoadAnimation();
@@ -4782,16 +4778,12 @@ class Activity {
                         that._changeBlockVisibility();
                     }
 
-                    document.removeEventListener("finishedLoading", __functionload);
+                    pubsub.off("finishedLoading", __functionload);
                     that.firstRun = false;
                 }, 1000);
             };
 
-            if (document.addEventListener) {
-                document.addEventListener("finishedLoading", __functionload, false);
-            } else {
-                document.attachEvent("finishedLoading", __functionload);
-            }
+            pubsub.on("finishedLoading", __functionload);
         };
         setupActivityAbcParser(this);
 
@@ -7006,7 +6998,7 @@ class Activity {
                                 that.stage.removeAllEventListeners("trashsignal");
 
                                 const __afterLoad = () => {
-                                    document.removeEventListener("finishedLoading", __afterLoad);
+                                    pubsub.off("finishedLoading", __afterLoad);
                                 };
 
                                 // Wait for the old blocks to be removed.
@@ -7014,11 +7006,7 @@ class Activity {
                                     that.blocks.loadNewBlocks(obj);
                                     that.stage.removeAllEventListeners("trashsignal");
 
-                                    if (document.addEventListener) {
-                                        document.addEventListener("finishedLoading", __afterLoad);
-                                    } else {
-                                        document.attachEvent("finishedLoading", __afterLoad);
-                                    }
+                                    pubsub.on("finishedLoading", __afterLoad);
                                 };
 
                                 that.stage.addEventListener("trashsignal", __listener, false);
