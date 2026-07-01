@@ -1588,4 +1588,784 @@ describe("Logo comprehensive method coverage", () => {
         global.CAMERAVALUE = originalCameraValue;
         global.VIDEOVALUE = originalVideoValue;
     });
+
+    test("timerManager getter returns the internal _timerManager instance", () => {
+        const tm = logo.timerManager;
+        expect(tm).toBe(logo._timerManager);
+        expect(typeof tm.clearAll).toBe("function");
+        expect(typeof tm.setTimeout).toBe("function");
+    });
+
+    test("prepSynths skips initialization when _synthsInitialized is true", () => {
+        logo._synthsInitialized = true;
+        logo.prepSynths();
+        expect(logo.synth.newTone).not.toHaveBeenCalled();
+    });
+
+    test("doStopTurtles logs debug message when ManagedTimer cancels pending timers", () => {
+        jest.useFakeTimers();
+        const debugSpy = jest.spyOn(console, "debug").mockImplementation(() => {});
+
+        logo._timerManager.setTimeout(() => {}, 5000);
+        logo._timerManager.setTimeout(() => {}, 6000);
+
+        logo.sounds = [];
+        logo.deps.instruments = { 0: {}, 1: {} };
+        logo.synth = {
+            stop: jest.fn(),
+            stopSound: jest.fn(),
+            disposeAllInstruments: jest.fn(),
+            recorder: null
+        };
+        logo._restoreConnections = jest.fn();
+        mockActivity.turtles.turtleList = [turtle0];
+
+        logo.doStopTurtles();
+
+        expect(debugSpy).toHaveBeenCalledWith(
+            expect.stringContaining("ManagedTimer: cancelled 2 pending timer(s) on stop")
+        );
+
+        debugSpy.mockRestore();
+        jest.useRealTimers();
+    });
+
+    test("doStopTurtles clears delayTimeout on turtles with pending delays", () => {
+        const clearTimeoutSpy = jest.spyOn(global, "clearTimeout").mockImplementation(() => {});
+        turtle0.delayTimeout = 777;
+        mockActivity.turtles.turtleList = [turtle0];
+        logo.deps.instruments = { 0: {} };
+
+        logo.sounds = [];
+        logo.synth = {
+            stop: jest.fn(),
+            stopSound: jest.fn(),
+            disposeAllInstruments: jest.fn(),
+            recorder: null
+        };
+        logo._restoreConnections = jest.fn();
+
+        logo.doStopTurtles();
+
+        expect(clearTimeoutSpy).toHaveBeenCalledWith(777);
+        expect(turtle0.delayTimeout).toBeNull();
+        clearTimeoutSpy.mockRestore();
+    });
+
+    test("runLogoCommands executes evalOnStartList plugin hooks", () => {
+        const hookFn = jest.fn();
+        logo.evalOnStartList = { myHook: hookFn };
+        logo.prepSynths = jest.fn();
+        logo.initTurtle = jest.fn();
+        logo.safePluginExecute = jest.fn();
+        mockActivity.blocks.stackList = [];
+        logo.blockList = [];
+
+        logo.runLogoCommands(null, null);
+
+        expect(logo.safePluginExecute).toHaveBeenCalledWith(hookFn, logo);
+    });
+
+    test("runLogoCommands calls turtles.add when getTurtleCount is zero", () => {
+        mockActivity.turtles.getTurtleCount = jest.fn(() => 0);
+        logo.prepSynths = jest.fn();
+        logo.initTurtle = jest.fn();
+        mockActivity.blocks.stackList = [];
+        logo.blockList = [];
+
+        logo.runLogoCommands(null, null);
+
+        expect(mockActivity.turtles.add).toHaveBeenCalledWith(null);
+    });
+
+    test("runFromBlockNow stops and emits error when iteration limit is exceeded", () => {
+        logo._totalIterations = logo._MAX_ITERATIONS;
+        logo.stopTurtle = false;
+        logo.blockList = [
+            {
+                name: "print",
+                protoblock: { args: 0, dockTypes: ["flow"], flow: jest.fn(() => null) },
+                connections: [null],
+                isValueBlock: () => false,
+                isArgBlock: () => false
+            }
+        ];
+
+        logo.runFromBlockNow(logo, 0, 0, 0, null);
+
+        expect(logo.stopTurtle).toBe(true);
+        expect(mockActivity.errorMsg).toHaveBeenCalledWith(
+            expect.stringContaining("Infinite loop detected"),
+            0
+        );
+        expect(logo._alreadyRunning).toBe(false);
+        expect(logo._totalIterations).toBe(0);
+        expect(logo._syncCounter).toBe(0);
+    });
+
+    test("processShow displays http:// URL via doShowURL", () => {
+        logo.processShow(0, null, 5, "http://example.com/img.png");
+        expect(turtle0.doShowURL).toHaveBeenCalledWith(5, "http://example.com/img.png");
+    });
+
+    test("processShow displays plain text string via doShowText", () => {
+        logo.processShow(0, null, 8, "hello world");
+        expect(turtle0.doShowText).toHaveBeenCalledWith(8, "hello world");
+    });
+
+    test("dispatchTurtleSignals returns early when blk not in embeddedGraphics", async () => {
+        logo.deps.utils.delayExecution = jest.fn(() => Promise.resolve());
+        turtle0.singer.embeddedGraphics = { 5: [1] };
+
+        await logo.dispatchTurtleSignals(0, 0.5, 99, 0);
+
+        expect(logo.deps.utils.delayExecution).not.toHaveBeenCalled();
+    });
+
+    test("dispatchTurtleSignals invokes __pen immediately with setcolor when suppressOutput=true", async () => {
+        logo.parseArg = jest.fn(() => 7);
+        logo.deps.utils.delayExecution = jest.fn(() => Promise.resolve());
+        turtle0.singer.suppressOutput = true;
+        turtle0.embeddedGraphicsFinished = true;
+
+        logo.blockList = [null, { name: "setcolor", connections: [null, 1] }];
+        turtle0.singer.embeddedGraphics = { 60: [1] };
+
+        await logo.dispatchTurtleSignals(0, 0.5, 60, 0);
+
+        expect(turtle0.painter.doSetColor).toHaveBeenCalledWith(7);
+    });
+
+    test("dispatchTurtleSignals __clear with suppressOutput=true sets svgBackground", async () => {
+        logo.deps.utils.delayExecution = jest.fn(() => Promise.resolve());
+        turtle0.singer.suppressOutput = true;
+        turtle0.embeddedGraphicsFinished = true;
+        turtle0.painter.penState = true;
+
+        logo.blockList = [null, { name: "clear", connections: [] }];
+        turtle0.singer.embeddedGraphics = { 61: [1] };
+
+        await logo.dispatchTurtleSignals(0, 0.5, 61, 0);
+
+        expect(logo.svgBackground).toBe(true);
+    });
+
+    test("dispatchTurtleSignals handles back block (forward with sign=-1)", async () => {
+        logo.parseArg = jest.fn(() => 10);
+        logo.deps.utils.delayExecution = jest.fn(() => Promise.resolve());
+        turtle0.singer.suppressOutput = true;
+        turtle0.embeddedGraphicsFinished = true;
+
+        logo.blockList = [null, { name: "back", connections: [null, 1] }];
+        turtle0.singer.embeddedGraphics = { 62: [1] };
+
+        await logo.dispatchTurtleSignals(0, 0.5, 62, 0);
+
+        expect(turtle0.painter.doForward).toHaveBeenCalledWith(-10);
+    });
+
+    test("dispatchTurtleSignals handles left block (right with sign=-1)", async () => {
+        logo.parseArg = jest.fn(() => 30);
+        logo.deps.utils.delayExecution = jest.fn(() => Promise.resolve());
+        turtle0.singer.suppressOutput = true;
+        turtle0.embeddedGraphicsFinished = true;
+
+        logo.blockList = [null, { name: "left", connections: [null, 1] }];
+        turtle0.singer.embeddedGraphics = { 63: [1] };
+
+        await logo.dispatchTurtleSignals(0, 0.5, 63, 0);
+
+        expect(turtle0.painter.doRight).toHaveBeenCalledWith(-30);
+    });
+
+    test("dispatchTurtleSignals sets dispatchFactor to NOTEDIV/16 when stepTime > 100", async () => {
+        logo.parseArg = jest.fn(() => 5);
+        logo.deps.utils.delayExecution = jest.fn(() => Promise.resolve());
+        turtle0.singer.suppressOutput = true;
+        turtle0.embeddedGraphicsFinished = true;
+
+        // 1 forward block → extendedCounter = 1
+        // stepTime = (beatValue * 995) / NOTEDIV / 1 = beatValue * 124.375
+        // beatValue = 1.2 → stepTime ≈ 149 → falls in (100, 200) range → NOTEDIV/16
+        logo.blockList = [null, { name: "forward", connections: [null, 1] }];
+        turtle0.singer.embeddedGraphics = { 64: [1] };
+
+        await logo.dispatchTurtleSignals(0, 1.2, 64, 0);
+
+        expect(turtle0.singer.dispatchFactor).toBe(NOTEDIV / 16);
+    });
+
+    test("dispatchTurtleSignals sets dispatchFactor to NOTEDIV/8 when stepTime > 50", async () => {
+        logo.parseArg = jest.fn(() => 5);
+        logo.deps.utils.delayExecution = jest.fn(() => Promise.resolve());
+        turtle0.singer.suppressOutput = true;
+        turtle0.embeddedGraphicsFinished = true;
+
+        // beatValue = 0.7 → stepTime ≈ 87 → falls in (50, 100) range → NOTEDIV/8
+        logo.blockList = [null, { name: "forward", connections: [null, 1] }];
+        turtle0.singer.embeddedGraphics = { 65: [1] };
+
+        await logo.dispatchTurtleSignals(0, 0.7, 65, 0);
+
+        expect(turtle0.singer.dispatchFactor).toBe(NOTEDIV / 8);
+    });
+
+    test("dispatchTurtleSignals forward fires middle-step timers across full dispatch range", async () => {
+        jest.useFakeTimers();
+        logo.parseArg = jest.fn(() => 16);
+        logo.deps.utils.delayExecution = jest.fn(() => Promise.resolve());
+        turtle0.singer.suppressOutput = false;
+        turtle0.embeddedGraphicsFinished = true;
+
+        // 1 forward block, beatValue=1.5 → stepTime≈186 → dispatchFactor=NOTEDIV/16=0.5
+        // Loop runs NOTEDIV/0.5=16 iterations: t=0 "first", t=1..14 "middle", t=15 "last"
+        logo.blockList = [null, { name: "forward", connections: [null, 1] }];
+        turtle0.singer.embeddedGraphics = { 66: [1] };
+
+        const p = logo.dispatchTurtleSignals(0, 1.5, 66, 0);
+        jest.runAllTimers();
+        await p;
+
+        expect(turtle0.painter.doForward).toHaveBeenCalledTimes(16);
+        jest.useRealTimers();
+    });
+
+    test("dispatchTurtleSignals dispatches penup and pendown through timer when suppressOutput=false", async () => {
+        jest.useFakeTimers();
+        logo.deps.utils.delayExecution = jest.fn(() => Promise.resolve());
+        turtle0.singer.suppressOutput = false;
+        turtle0.embeddedGraphicsFinished = true;
+
+        logo.blockList = [
+            null,
+            { name: "penup", connections: [] },
+            { name: "pendown", connections: [] }
+        ];
+        turtle0.singer.embeddedGraphics = { 67: [1, 2] };
+
+        const p = logo.dispatchTurtleSignals(0, 0.5, 67, 0);
+        jest.runAllTimers();
+        await p;
+
+        expect(turtle0.painter.doPenUp).toHaveBeenCalled();
+        expect(turtle0.painter.doPenDown).toHaveBeenCalled();
+        jest.useRealTimers();
+    });
+});
+
+describe("Logo safePluginExecute", () => {
+    let logo;
+    let mockActivity;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        global.instruments = { 0: {} };
+        global.instrumentsFilters = { 0: {} };
+        global.instrumentsEffects = { 0: {} };
+
+        mockActivity = {
+            blocks: {
+                blockList: [],
+                findStacks: jest.fn(),
+                stackList: [],
+                unhighlightAll: jest.fn(),
+                bringToTop: jest.fn(),
+                showBlocks: jest.fn(),
+                unhighlight: jest.fn(),
+                visible: true,
+                clearParameterBlocks: jest.fn(),
+                sameGeneration: jest.fn(() => false)
+            },
+            turtles: {
+                turtleList: [],
+                getTurtleCount: jest.fn(() => 0),
+                turtleCount: jest.fn(() => 0),
+                ithTurtle: jest.fn(() => ({
+                    singer: {
+                        synthVolume: {},
+                        backward: [],
+                        inDuplicate: false,
+                        notesPlayed: [0, 1],
+                        pickup: 0,
+                        noteValuePerBeat: 1,
+                        beatsPerMeasure: 4
+                    },
+                    listeners: {},
+                    parameterQueue: [],
+                    initTurtle: jest.fn()
+                })),
+                getTurtle: jest.fn(() => null),
+                markAllAsStopped: jest.fn(),
+                add: jest.fn(),
+                addTurtle: jest.fn(),
+                turtleX2screenX: jest.fn(x => x),
+                turtleY2screenY: jest.fn(y => y)
+            },
+            stage: {
+                removeEventListener: jest.fn(),
+                addEventListener: jest.fn(),
+                update: jest.fn()
+            },
+            onStopTurtle: jest.fn(),
+            onRunTurtle: jest.fn(),
+            errorMsg: jest.fn(),
+            saveLocally: jest.fn(),
+            hideMsgs: jest.fn(),
+            showBlocksAfterRun: false
+        };
+
+        global.window = { widgetWindows: { isOpen: jest.fn(() => false) } };
+        global.document = {
+            body: { style: { cursor: "default" } },
+            getElementById: jest.fn(() => ({ style: { color: "" } }))
+        };
+
+        logo = new Logo(mockActivity);
+    });
+
+    test("executes function code and returns its result", () => {
+        const plugin = jest.fn(() => 42);
+        const result = logo.safePluginExecute(plugin, logo, 0, 1, "val");
+        expect(plugin).toHaveBeenCalledWith(logo, 0, 1, "val");
+        expect(result).toBe(42);
+    });
+
+    test("catches errors thrown by function code and returns undefined", () => {
+        const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+        const result = logo.safePluginExecute(
+            () => {
+                throw new Error("plugin crash");
+            },
+            logo,
+            0,
+            0,
+            null
+        );
+        expect(result).toBeUndefined();
+        expect(consoleSpy).toHaveBeenCalledWith(
+            "Plugin function execution failed: ",
+            expect.any(Error)
+        );
+        consoleSpy.mockRestore();
+    });
+
+    test("returns undefined for non-function non-string inputs", () => {
+        expect(logo.safePluginExecute(42, logo, 0, 0, null)).toBeUndefined();
+        expect(logo.safePluginExecute(null, logo, 0, 0, null)).toBeUndefined();
+        expect(logo.safePluginExecute({}, logo, 0, 0, null)).toBeUndefined();
+    });
+
+    test("blocks arbitrary string code and logs a warning", () => {
+        const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+        const result = logo.safePluginExecute("eval('alert(1)')", logo, 0, 0, null);
+        expect(result).toBeUndefined();
+        expect(warnSpy).toHaveBeenCalledWith(
+            "Blocked arbitrary JavaScript execution in plugin:",
+            expect.stringContaining("eval")
+        );
+        warnSpy.mockRestore();
+    });
+
+    test("executes unary math pattern for Math.sin", () => {
+        logo.blockList = [{ connections: [null, null], value: null }];
+        logo.parseArg = jest.fn(() => 0);
+        const code =
+            "const mathBlock = globalActivity.logo.blockList[blk];" +
+            "const conns = mathBlock.connections;" +
+            "mathBlock.value = Math.sin(logo.parseArg(logo, turtle, conns[1]));";
+        const result = logo.safePluginExecute(code, logo, 0, 0, null);
+        expect(result).toBeCloseTo(0);
+        expect(logo.blockList[0].value).toBeCloseTo(0);
+    });
+
+    test("executes unary math pattern for Math.sqrt", () => {
+        logo.blockList = [{ connections: [null, null], value: null }];
+        logo.parseArg = jest.fn(() => 9);
+        const code =
+            "const mathBlock = globalActivity.logo.blockList[blk];" +
+            "const conns = mathBlock.connections;" +
+            "mathBlock.value = Math.sqrt(logo.parseArg(logo, turtle, conns[1]));";
+        const result = logo.safePluginExecute(code, logo, 0, 0, null);
+        expect(result).toBeCloseTo(3);
+        expect(logo.blockList[0].value).toBeCloseTo(3);
+    });
+
+    test("executes unary math pattern for Math.abs", () => {
+        logo.blockList = [{ connections: [null, null], value: null }];
+        logo.parseArg = jest.fn(() => -5);
+        const code =
+            "const mathBlock = globalActivity.logo.blockList[blk];" +
+            "const conns = mathBlock.connections;" +
+            "mathBlock.value = Math.abs(logo.parseArg(logo, turtle, conns[1]));";
+        const result = logo.safePluginExecute(code, logo, 0, 0, null);
+        expect(result).toBe(5);
+    });
+
+    test("executes binary math pattern for Math.pow", () => {
+        logo.blockList = [{ connections: [null, null, null], value: null }];
+        logo.parseArg = jest.fn().mockReturnValueOnce(2).mockReturnValueOnce(3);
+        const code =
+            "const mathBlock = globalActivity.logo.blockList[blk];" +
+            "const conns = mathBlock.connections;" +
+            "var base = logo.parseArg(logo, turtle, conns[1]);" +
+            "var exp  = logo.parseArg(logo, turtle, conns[2]);" +
+            "mathBlock.value = Math.pow(base, exp);";
+        const result = logo.safePluginExecute(code, logo, 0, 0, null);
+        expect(result).toBe(8);
+        expect(logo.blockList[0].value).toBe(8);
+    });
+
+    test("executes Math.PI constant pattern", () => {
+        logo.blockList = [{ connections: [], value: null }];
+        const code =
+            "const mathBlock = globalActivity.logo.blockList[blk];" +
+            "const conns = mathBlock.connections;" +
+            "mathBlock.value = Math.PI;";
+        const result = logo.safePluginExecute(code, logo, 0, 0, null);
+        expect(result).toBeCloseTo(Math.PI);
+        expect(logo.blockList[0].value).toBeCloseTo(Math.PI);
+    });
+
+    test("executes Math.E constant pattern", () => {
+        logo.blockList = [{ connections: [], value: null }];
+        const code =
+            "const mathBlock = globalActivity.logo.blockList[blk];" +
+            "const conns = mathBlock.connections;" +
+            "mathBlock.value = Math.E;";
+        const result = logo.safePluginExecute(code, logo, 0, 0, null);
+        expect(result).toBeCloseTo(Math.E);
+        expect(logo.blockList[0].value).toBeCloseTo(Math.E);
+    });
+
+    test("executes parameter assignment pattern for Math.PI", () => {
+        logo.blockList = [{ value: null }];
+        const result = logo.safePluginExecute(
+            "logo.blockList[blk].value = Math.PI;",
+            logo,
+            0,
+            0,
+            null
+        );
+        expect(result).toBeCloseTo(Math.PI);
+        expect(logo.blockList[0].value).toBeCloseTo(Math.PI);
+    });
+
+    test("executes parameter assignment pattern for Math.E", () => {
+        logo.blockList = [{ value: null }];
+        const result = logo.safePluginExecute(
+            "logo.blockList[blk].value = Math.E;",
+            logo,
+            0,
+            0,
+            null
+        );
+        expect(result).toBeCloseTo(Math.E);
+        expect(logo.blockList[0].value).toBeCloseTo(Math.E);
+    });
+});
+
+describe("Logo constructor delegate methods", () => {
+    let mockBlocks, mockTurtles, mockStage;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        global.instruments = { 0: {} };
+        global.instrumentsFilters = { 0: {} };
+        global.instrumentsEffects = { 0: {} };
+
+        mockBlocks = {
+            blockList: [],
+            findStacks: jest.fn(),
+            stackList: [],
+            unhighlightAll: jest.fn(),
+            bringToTop: jest.fn(),
+            showBlocks: jest.fn(),
+            unhighlight: jest.fn(),
+            visible: true,
+            clearParameterBlocks: jest.fn(),
+            sameGeneration: jest.fn(() => false)
+        };
+        mockTurtles = {
+            turtleList: [],
+            getTurtleCount: jest.fn(() => 0),
+            turtleCount: jest.fn(() => 0),
+            ithTurtle: jest.fn(() => ({
+                singer: {
+                    synthVolume: {},
+                    backward: [],
+                    inDuplicate: false,
+                    notesPlayed: [0, 1],
+                    pickup: 0,
+                    noteValuePerBeat: 1,
+                    beatsPerMeasure: 4
+                },
+                listeners: {},
+                parameterQueue: [],
+                initTurtle: jest.fn()
+            })),
+            getTurtle: jest.fn(() => null),
+            markAllAsStopped: jest.fn(),
+            add: jest.fn(),
+            addTurtle: jest.fn(),
+            turtleX2screenX: jest.fn(x => x),
+            turtleY2screenY: jest.fn(y => y)
+        };
+        mockStage = {
+            removeEventListener: jest.fn(),
+            addEventListener: jest.fn(),
+            update: jest.fn()
+        };
+        global.window = { widgetWindows: { isOpen: jest.fn(() => false) } };
+        global.document = {
+            body: { style: { cursor: "default" } },
+            getElementById: jest.fn(() => ({ style: { color: "" } }))
+        };
+    });
+
+    describe("explicit deps mode", () => {
+        let deps, depLogo;
+
+        beforeEach(() => {
+            deps = {
+                blocks: mockBlocks,
+                turtles: mockTurtles,
+                stage: mockStage,
+                errorHandler: jest.fn(),
+                messageHandler: { hide: jest.fn() },
+                storage: { saveLocally: jest.fn() },
+                config: { showBlocksAfterRun: false },
+                callbacks: { onStopTurtle: jest.fn(), onRunTurtle: jest.fn() },
+                classes: {
+                    Notation: jest.fn(() => ({
+                        notationStaging: {},
+                        notationDrumStaging: {},
+                        pickupPoint: {},
+                        pickupPOW2: {},
+                        doUpdateNotation: jest.fn(),
+                        notationInsertTie: jest.fn()
+                    })),
+                    Synth: jest.fn(() => ({
+                        newTone: jest.fn(),
+                        createDefaultSynth: jest.fn(),
+                        loadSynth: jest.fn(),
+                        start: jest.fn(),
+                        stop: jest.fn(),
+                        stopSound: jest.fn(),
+                        disposeAllInstruments: jest.fn(),
+                        changeInTemperament: false,
+                        recorder: null
+                    })),
+                    StatusMatrix: jest.fn()
+                }
+            };
+            depLogo = new Logo(deps);
+        });
+
+        test("activity.errorMsg delegates to deps.errorHandler", () => {
+            depLogo.activity.errorMsg("test error", 5);
+            expect(deps.errorHandler).toHaveBeenCalledWith("test error", 5);
+        });
+
+        test("activity.hideMsgs delegates to deps.messageHandler.hide", () => {
+            depLogo.activity.hideMsgs();
+            expect(deps.messageHandler.hide).toHaveBeenCalled();
+        });
+
+        test("activity.saveLocally delegates to deps.storage.saveLocally", () => {
+            depLogo.activity.saveLocally();
+            expect(deps.storage.saveLocally).toHaveBeenCalled();
+        });
+
+        test("activity.showBlocksAfterRun getter reads from config", () => {
+            expect(depLogo.activity.showBlocksAfterRun).toBe(false);
+        });
+
+        test("activity.showBlocksAfterRun setter writes through to config", () => {
+            depLogo.activity.showBlocksAfterRun = true;
+            expect(deps.config.showBlocksAfterRun).toBe(true);
+        });
+
+        test("activity.logo is a self-reference to the Logo instance", () => {
+            expect(depLogo.activity.logo).toBe(depLogo);
+        });
+    });
+
+    describe("old pattern (activity) mode", () => {
+        let activity, oldLogo;
+
+        beforeEach(() => {
+            activity = {
+                blocks: mockBlocks,
+                turtles: mockTurtles,
+                stage: mockStage,
+                onStopTurtle: jest.fn(),
+                onRunTurtle: jest.fn(),
+                errorMsg: jest.fn(),
+                saveLocally: jest.fn(),
+                hideMsgs: jest.fn(),
+                showBlocksAfterRun: false
+            };
+            oldLogo = new Logo(activity);
+        });
+
+        test("deps.errorHandler proxies to activity.errorMsg", () => {
+            oldLogo.deps.errorHandler("msg", 3);
+            expect(activity.errorMsg).toHaveBeenCalledWith("msg", 3);
+        });
+
+        test("deps.messageHandler.hide proxies to activity.hideMsgs", () => {
+            oldLogo.deps.messageHandler.hide();
+            expect(activity.hideMsgs).toHaveBeenCalled();
+        });
+
+        test("deps.storage.saveLocally proxies to activity.saveLocally", () => {
+            oldLogo.deps.storage.saveLocally();
+            expect(activity.saveLocally).toHaveBeenCalled();
+        });
+    });
+});
+
+describe("Logo parseArg additional branches", () => {
+    let logo;
+    let mockActivity;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        global.instruments = { 0: {} };
+        global.instrumentsFilters = { 0: {} };
+        global.instrumentsEffects = { 0: {} };
+
+        mockActivity = {
+            blocks: { blockList: [] },
+            turtles: {
+                ithTurtle: jest.fn(() => ({
+                    parameterQueue: [],
+                    singer: { noteDirection: 0 },
+                    painter: { color: 75 }
+                }))
+            },
+            errorMsg: jest.fn()
+        };
+
+        global.window = { widgetWindows: { isOpen: jest.fn(() => false) } };
+        global.document = {
+            body: { style: { cursor: "default" } },
+            getElementById: jest.fn(() => ({ style: { color: "" } }))
+        };
+
+        logo = new Logo(mockActivity);
+        logo.statusFields = [];
+        logo.inStatusMatrix = false;
+        logo.returns[0] = [];
+    });
+
+    test("dectofrac with null connection[1] emits NOINPUTERRORMSG and returns 0", () => {
+        logo.blockList = [
+            {
+                name: "dectofrac",
+                value: null,
+                connections: [1, null],
+                protoblock: { parameter: false, dockTypes: ["numberout"] },
+                isValueBlock: () => false
+            },
+            { name: "print" }
+        ];
+        logo.inStatusMatrix = false;
+        const result = logo.parseArg(logo, 0, 0, null, null);
+        expect(mockActivity.errorMsg).toHaveBeenCalledWith(NOINPUTERRORMSG, 0);
+        expect(result).toBe(0);
+    });
+
+    test("dectofrac with non-number arg emits NANERRORMSG and returns 0", () => {
+        logo.blockList = [
+            {
+                name: "dectofrac",
+                value: null,
+                connections: [2, 1],
+                protoblock: { parameter: false, dockTypes: ["numberout"] },
+                isValueBlock: () => false
+            },
+            {
+                name: "text",
+                value: "hello",
+                protoblock: { parameter: false },
+                isValueBlock: () => true
+            },
+            { name: "print" }
+        ];
+        logo.inStatusMatrix = false;
+        const result = logo.parseArg(logo, 0, 0, null, null);
+        expect(mockActivity.errorMsg).toHaveBeenCalledWith(NANERRORMSG, 0);
+        expect(result).toBe(0);
+    });
+
+    test("hue block outside status matrix returns painter.color", () => {
+        mockActivity.turtles.ithTurtle = jest.fn(() => ({
+            parameterQueue: [],
+            singer: { noteDirection: 0 },
+            painter: { color: 75 }
+        }));
+        logo.blockList = [
+            {
+                name: "hue",
+                value: null,
+                connections: [1],
+                protoblock: { parameter: false, dockTypes: ["numberout"] },
+                isValueBlock: () => false
+            },
+            { name: "forward" }
+        ];
+        logo.inStatusMatrix = false;
+        const result = logo.parseArg(logo, 0, 0, null, null);
+        expect(result).toBe(75);
+    });
+
+    test("returnValue with empty returns array returns 0", () => {
+        logo.returns[0] = [];
+        logo.blockList = [
+            {
+                name: "returnValue",
+                value: null,
+                connections: [],
+                protoblock: { parameter: false, dockTypes: ["numberout"] },
+                isValueBlock: () => false
+            }
+        ];
+        const result = logo.parseArg(logo, 0, 0, null, null);
+        expect(result).toBe(0);
+    });
+
+    test("evalArgDict plugin is invoked when block name matches", () => {
+        const pluginFn = jest.fn(() => 99);
+        logo.evalArgDict = { myPlugin: pluginFn };
+        logo.blockList = [
+            {
+                name: "myPlugin",
+                value: null,
+                connections: [null],
+                protoblock: { parameter: false, dockTypes: ["numberout"] },
+                isValueBlock: () => false
+            }
+        ];
+        logo.parseArg(logo, 0, 0, null, null);
+        expect(pluginFn).toHaveBeenCalled();
+    });
+
+    test("unknown block name in evalArgDict logs error", () => {
+        const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+        logo.blockList = [
+            {
+                name: "unknownBlock",
+                value: null,
+                connections: [null],
+                protoblock: { parameter: false, dockTypes: ["numberout"] },
+                isValueBlock: () => false
+            }
+        ];
+        logo.parseArg(logo, 0, 0, null, null);
+        expect(consoleSpy).toHaveBeenCalledWith(
+            expect.stringContaining("I do not know how to unknownBlock")
+        );
+        consoleSpy.mockRestore();
+    });
 });
