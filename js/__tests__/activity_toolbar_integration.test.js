@@ -77,6 +77,9 @@ const loadActivityClass = () => {
                 showContents: jest.fn(),
                 justLoadStart: jest.fn(),
                 saveLocally: jest.fn(),
+                newProject: jest.fn(),
+                doLoad: jest.fn(),
+                doMergeLoad: jest.fn(),
                 start: jest.fn()
             };
         }),
