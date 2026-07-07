@@ -1053,15 +1053,14 @@ describe("_midiImportBlocks", () => {
 // ---------------------------------------------------------------------------
 
 describe("start() URL parameter parsing", () => {
-    let _savedLocation;
+    let _savedHref;
 
     beforeAll(() => {
-        _savedLocation = window.location;
-        delete window.location;
+        _savedHref = window.location.href;
     });
 
     afterAll(() => {
-        window.location = _savedLocation;
+        window.history.replaceState({}, "", _savedHref);
     });
 
     beforeEach(() => {
@@ -1070,10 +1069,11 @@ describe("start() URL parameter parsing", () => {
 
     afterEach(() => {
         jest.useRealTimers();
+        document.getElementById.mockRestore?.();
     });
 
-    const setURL = href => {
-        window.location = { href };
+    const setURL = path => {
+        window.history.replaceState({}, "", path);
     };
 
     const makeStartActivity = () => {
@@ -1092,7 +1092,7 @@ describe("start() URL parameter parsing", () => {
     };
 
     it("schedules _loadStart when no URL params", () => {
-        setURL("http://localhost:3000/");
+        setURL("/");
         const activity = makeStartActivity();
         const pm = new ProjectManager(activity);
         pm._setupFileHandlers = jest.fn();
@@ -1104,10 +1104,9 @@ describe("start() URL parameter parsing", () => {
         expect(activity.loadStartWrapper).toHaveBeenCalled();
     });
 
-    it("schedules _loadProject when ?id= URL param is present", () => {
-        setURL("http://localhost:3000/?id=project-42");
+    it("parses single ?id= URL param and schedules _loadProject", () => {
+        setURL("/?id=project-42");
         const activity = makeStartActivity();
-        activity.projectID = "project-42";
         const pm = new ProjectManager(activity);
         pm._setupFileHandlers = jest.fn();
         pm._loadProject = jest.fn();
@@ -1115,50 +1114,72 @@ describe("start() URL parameter parsing", () => {
         pm.start();
         jest.advanceTimersByTime(200);
 
+        expect(activity.projectID).toBe("project-42");
         expect(activity.loadStartWrapper).toHaveBeenCalled();
     });
 
-    it("parses run=true flag from URL", () => {
-        setURL("http://localhost:3000/?id=proj&run=true");
+    it("parses run=true flag from multi-param URL", () => {
+        setURL("/?id=proj&run=true");
         const activity = makeStartActivity();
-        activity.projectID = "proj";
         const pm = new ProjectManager(activity);
         pm._setupFileHandlers = jest.fn();
 
         pm.start();
-        jest.advanceTimersByTime(200);
 
-        expect(activity.loadStartWrapper).toHaveBeenCalled();
+        expect(activity.projectID).toBe("proj");
     });
 
-    it("parses show=true flag from URL", () => {
-        setURL("http://localhost:3000/?id=proj&show=true");
+    it("parses show=true flag from multi-param URL", () => {
+        setURL("/?id=proj&show=true");
         const activity = makeStartActivity();
-        activity.projectID = "proj";
         const pm = new ProjectManager(activity);
         pm._setupFileHandlers = jest.fn();
 
         pm.start();
-        jest.advanceTimersByTime(200);
 
-        expect(activity.loadStartWrapper).toHaveBeenCalled();
+        expect(activity.projectID).toBe("proj");
     });
 
-    it("parses collapse=true flag from URL", () => {
-        setURL("http://localhost:3000/?id=proj&collapse=true");
+    it("parses collapse=true flag from multi-param URL", () => {
+        setURL("/?id=proj&collapse=true");
         const activity = makeStartActivity();
-        activity.projectID = "proj";
         const pm = new ProjectManager(activity);
         pm._setupFileHandlers = jest.fn();
 
         pm.start();
-        jest.advanceTimersByTime(200);
 
-        expect(activity.loadStartWrapper).toHaveBeenCalled();
+        expect(activity.projectID).toBe("proj");
     });
 
-    afterEach(() => {
-        document.getElementById.mockRestore?.();
+    it("handles unknown multi-param with errorMsg (default case)", () => {
+        setURL("/?id=proj&badparam=foo");
+        const activity = makeStartActivity();
+        const pm = new ProjectManager(activity);
+        pm._setupFileHandlers = jest.fn();
+
+        pm.start();
+
+        expect(activity.errorMsg).toHaveBeenCalled();
+    });
+
+    it("callback calls _loadProject when projectID is non-null", () => {
+        setURL("/?id=my-proj");
+        const activity = makeStartActivity();
+        activity.loadStartWrapper = jest.fn().mockImplementation(async (fn, ...args) => {
+            if (typeof fn === "function") await fn(activity, ...args);
+        });
+        const pm = new ProjectManager(activity);
+        pm._setupFileHandlers = jest.fn();
+        pm._loadProject = jest.fn();
+
+        pm.start();
+        jest.advanceTimersByTime(200);
+
+        expect(pm._loadProject).toHaveBeenCalledWith(
+            "my-proj",
+            expect.any(Object),
+            expect.any(Array)
+        );
     });
 });
 
@@ -1240,5 +1261,637 @@ describe("delegate integration", () => {
         pm.runProject = jest.fn();
         activity.runProject("my-env");
         expect(pm.runProject).toHaveBeenCalledWith("my-env");
+    });
+});
+
+// ---------------------------------------------------------------------------
+// PART 20 — doLoadAnimation counter reset
+// ---------------------------------------------------------------------------
+
+describe("doLoadAnimation counter wrap", () => {
+    let loadContainer, messageText;
+
+    beforeEach(() => {
+        loadContainer = { style: { display: "none" } };
+        messageText = { textContent: "" };
+        jest.spyOn(document, "getElementById").mockImplementation(id => {
+            if (id === "load-container") return loadContainer;
+            if (id === "messageText") return messageText;
+            return null;
+        });
+        jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
+        document.getElementById.mockRestore();
+    });
+
+    it("resets counter to 0 after cycling through all 9 messages", () => {
+        const pm = new ProjectManager(makeActivity());
+        pm.doLoadAnimation();
+        // 9 load_messages entries; firing 9 ticks causes the counter to wrap
+        jest.advanceTimersByTime(2000 * 9);
+        expect(messageText.textContent).toMatch(/\.\.\.$/);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// PART 21 — _loadStart: removeBadSessionKey error (line 225)
+// ---------------------------------------------------------------------------
+
+describe("_loadStart removeBadSessionKey error", () => {
+    it("calls ErrorHandler.recoverable when storage.removeItem itself throws", async () => {
+        const removeItem = jest.fn().mockImplementation(() => {
+            throw new Error("storage full");
+        });
+        const activity = makeActivity({
+            storage: {
+                currentProject: "Crash",
+                SESSIONCrash: '{"broken":',
+                removeItem
+            }
+        });
+        activity.sessionData = '{"broken":';
+        const pm = new ProjectManager(activity);
+        await pm._loadStart(activity);
+
+        expect(global.ErrorHandler.recoverable).toHaveBeenCalledWith(
+            expect.objectContaining({ message: "storage full" }),
+            { operation: "removeBadSessionKey" }
+        );
+    });
+});
+
+// ---------------------------------------------------------------------------
+// PART 22 — _loadProject: textMsg error + 2500ms body
+// ---------------------------------------------------------------------------
+
+describe("_loadProject additional branches", () => {
+    const makePlanetActivity = (overrides = {}) => {
+        const planet = {
+            getCurrentProjectName: jest.fn(() => "Test Project"),
+            openProjectFromPlanet: jest.fn(),
+            initialiseNewProject: jest.fn(),
+            ...overrides.planet
+        };
+        return makeActivity({ planet, ...overrides });
+    };
+
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+
+    it("calls ErrorHandler.recoverable when textMsg throws", () => {
+        const activity = makePlanetActivity();
+        activity.textMsg = jest.fn().mockImplementationOnce(() => {
+            throw new Error("textMsg fail");
+        });
+        const pm = new ProjectManager(activity);
+
+        pm._loadProject("proj-1");
+
+        expect(global.ErrorHandler.recoverable).toHaveBeenCalledWith(
+            expect.objectContaining({ message: "textMsg fail" }),
+            { operation: "loadProjectName" }
+        );
+    });
+
+    it("calls openProjectFromPlanet and finishLoading after 2500ms", () => {
+        const activity = makePlanetActivity();
+        const pm = new ProjectManager(activity);
+
+        pm._loadProject("proj-1", { run: false, show: false, collapse: false });
+        jest.advanceTimersByTime(2500);
+
+        expect(activity.planet.openProjectFromPlanet).toHaveBeenCalledWith(
+            "proj-1",
+            expect.any(Function)
+        );
+        expect(activity.planet.initialiseNewProject).toHaveBeenCalled();
+        expect(activity.loading).toBe(false);
+    });
+
+    it("recovers via loadStartWrapper when openProjectFromPlanet is not a function", () => {
+        const activity = makePlanetActivity({
+            planet: {
+                getCurrentProjectName: jest.fn(() => "Test"),
+                openProjectFromPlanet: null,
+                initialiseNewProject: jest.fn()
+            }
+        });
+        const pm = new ProjectManager(activity);
+
+        pm._loadProject("proj-1", { run: false, show: false, collapse: false });
+        jest.advanceTimersByTime(2500);
+
+        expect(global.ErrorHandler.recoverable).toHaveBeenCalledWith(expect.any(Error), {
+            operation: "openProjectFromPlanet"
+        });
+        expect(activity.loadStartWrapper).toHaveBeenCalled();
+    });
+
+    it("warns when initialiseNewProject is not a function", () => {
+        const activity = makePlanetActivity({
+            planet: {
+                getCurrentProjectName: jest.fn(() => "Test"),
+                openProjectFromPlanet: jest.fn(),
+                initialiseNewProject: null
+            }
+        });
+        const pm = new ProjectManager(activity);
+
+        pm._loadProject("proj-1", { run: false, show: false, collapse: false });
+        jest.advanceTimersByTime(2500);
+
+        expect(global.ErrorHandler.warn).toHaveBeenCalledWith(
+            "Planet initialiseNewProject is unavailable.",
+            { operation: "loadFromPlanet" }
+        );
+    });
+
+    it("covers __functionload with run=true and firstRun=true", () => {
+        const activity = makePlanetActivity({ firstRun: true });
+        activity._toggleCollapsibleStacks = jest.fn();
+        activity._changeBlockVisibility = jest.fn();
+        const pm = new ProjectManager(activity);
+
+        pm._loadProject("proj-1", { run: true, show: true, collapse: false });
+
+        global.pubsub.emit("finishedLoading");
+        jest.advanceTimersByTime(1000);
+
+        expect(activity._toggleCollapsibleStacks).toHaveBeenCalled();
+        expect(activity.textMsg).toHaveBeenCalledWith("Click the run button to run the project.");
+        expect(activity._changeBlockVisibility).toHaveBeenCalled();
+    });
+
+    it("covers __functionload else-if !show branch when run=false and show=false", () => {
+        const activity = makePlanetActivity({ firstRun: true });
+        activity._changeBlockVisibility = jest.fn();
+        const pm = new ProjectManager(activity);
+
+        pm._loadProject("proj-1", { run: false, show: false, collapse: false });
+
+        global.pubsub.emit("finishedLoading");
+        jest.advanceTimersByTime(1000);
+
+        expect(activity._changeBlockVisibility).toHaveBeenCalled();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// PART 23 — _doLoad with undefined merge argument (line 389)
+// ---------------------------------------------------------------------------
+
+describe("_doLoad with no argument", () => {
+    beforeEach(() => {
+        jest.spyOn(document, "querySelector").mockReturnValue({
+            focus: jest.fn(),
+            click: jest.fn()
+        });
+    });
+    afterEach(() => document.querySelector.mockRestore());
+
+    it("defaults merge to false when no argument is passed", () => {
+        const activity = makeActivity();
+        const pm = new ProjectManager(activity);
+        pm._doLoad();
+        expect(activity.merging).toBe(false);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// PART 24 — prepareExport additional block types
+// ---------------------------------------------------------------------------
+
+describe("prepareExport additional block types", () => {
+    it("skips null entries in blockList (line 427)", () => {
+        const activity = makeActivity();
+        // Use "note" which hits the default: branch and exports as plain string
+        activity.blocks.blockList = [
+            null,
+            {
+                name: "note",
+                trash: false,
+                value: null,
+                collapsed: false,
+                container: { x: 0, y: 0 },
+                connections: [null],
+                isValueBlock: () => false
+            }
+        ];
+        const pm = new ProjectManager(activity);
+        const result = JSON.parse(pm.prepareExport());
+        expect(result).toHaveLength(1);
+        expect(result[0][1]).toBe("note");
+    });
+
+    it("exports temperament1 with custom temperament data", () => {
+        const activity = makeActivity();
+        activity.blocks.customTemperamentDefined = true;
+        activity.blocks.blockList = [
+            {
+                name: "temperament1",
+                trash: false,
+                value: null,
+                collapsed: false,
+                container: { x: 0, y: 0 },
+                connections: [null, null],
+                isValueBlock: () => false
+            }
+        ];
+        const pm = new ProjectManager(activity);
+        const result = JSON.parse(pm.prepareExport());
+        expect(result).toHaveLength(1);
+        expect(result[0][1][1]).toMatchObject({
+            customName: "custom",
+            startingPitch: 392
+        });
+    });
+
+    it("exports temperament1 with connected name block", () => {
+        const activity = makeActivity();
+        activity.blocks.customTemperamentDefined = true;
+        activity.blocks.blockList = [
+            {
+                name: "temperament1",
+                trash: false,
+                value: null,
+                collapsed: false,
+                container: { x: 0, y: 0 },
+                connections: [null, 1],
+                isValueBlock: () => false
+            },
+            {
+                name: "text",
+                trash: false,
+                value: "myScale",
+                collapsed: false,
+                container: { x: 10, y: 0 },
+                connections: [0],
+                isValueBlock: () => true
+            }
+        ];
+        const pm = new ProjectManager(activity);
+        const result = JSON.parse(pm.prepareExport());
+        expect(result[0][1][1].customName).toBe("myScale");
+    });
+
+    it("exports nopValueBlock with privateData as exportName", () => {
+        const activity = makeActivity();
+        activity.blocks.blockList = [
+            {
+                name: "nopValueBlock",
+                trash: false,
+                value: null,
+                collapsed: false,
+                privateData: "myCustomBlock",
+                container: { x: 0, y: 0 },
+                connections: [null],
+                isValueBlock: () => false
+            }
+        ];
+        const pm = new ProjectManager(activity);
+        const result = JSON.parse(pm.prepareExport());
+        expect(result[0][1]).toBe("myCustomBlock");
+    });
+
+    it("exports matrixData block with notes and count", () => {
+        window.savedMatricesNotes = [["C4"]];
+        window.savedMatricesCount = [4];
+        const activity = makeActivity();
+        activity.blocks.blockList = [
+            {
+                name: "matrixData",
+                trash: false,
+                value: null,
+                collapsed: false,
+                container: { x: 0, y: 0 },
+                connections: [null],
+                isValueBlock: () => false
+            }
+        ];
+        const pm = new ProjectManager(activity);
+        const result = JSON.parse(pm.prepareExport());
+        expect(result[0][1][1]).toMatchObject({
+            notes: [["C4"]],
+            count: [4]
+        });
+        expect(activity.hasMatrixDataBlock).toBe(true);
+    });
+
+    it("exports wrapmode block with value", () => {
+        const activity = makeActivity();
+        activity.blocks.blockList = [
+            {
+                name: "wrapmode",
+                trash: false,
+                value: "on",
+                collapsed: false,
+                container: { x: 0, y: 0 },
+                connections: [null],
+                isValueBlock: () => false
+            }
+        ];
+        const pm = new ProjectManager(activity);
+        const result = JSON.parse(pm.prepareExport());
+        expect(result[0][1][1]).toMatchObject({ value: "on" });
+    });
+});
+
+// ---------------------------------------------------------------------------
+// PART 25 — saveLocally: allProjects error + thumbnail
+// ---------------------------------------------------------------------------
+
+describe("saveLocally additional paths", () => {
+    it("calls ErrorHandler.recoverable when allProjects setter throws", () => {
+        const storage = Object.create(null);
+        let _currentProject;
+        Object.defineProperty(storage, "currentProject", {
+            get: () => _currentProject,
+            set: val => {
+                _currentProject = val;
+            },
+            configurable: true
+        });
+        Object.defineProperty(storage, "allProjects", {
+            set: () => {
+                throw new Error("quota exceeded");
+            },
+            configurable: true
+        });
+        const activity = makeActivity({ storage, canvas: { width: 100 } });
+        const pm = new ProjectManager(activity);
+        pm.prepareExport = jest.fn(() => "[]");
+
+        pm.saveLocally();
+
+        expect(global.ErrorHandler.recoverable).toHaveBeenCalledWith(
+            expect.objectContaining({ message: "quota exceeded" }),
+            { operation: "saveLocally_setCurrentProject" }
+        );
+    });
+
+    it("saves thumbnail to storage when Image loads", () => {
+        const origImage = global.Image;
+        class FakeImage {
+            constructor() {
+                this.naturalWidth = 100;
+                this.naturalHeight = 100;
+                this.onload = null;
+            }
+            set src(_) {
+                if (this.onload) this.onload();
+            }
+        }
+        global.Image = FakeImage;
+
+        const origCreate = document.createElement.bind(document);
+        const mockCanvas = {
+            width: 0,
+            height: 0,
+            getContext: () => ({ drawImage: jest.fn() }),
+            toDataURL: () => "data:image/png;base64,thumb"
+        };
+        jest.spyOn(document, "createElement").mockImplementation(tag =>
+            tag === "canvas" ? mockCanvas : origCreate(tag)
+        );
+
+        const storage = { currentProject: "Proj" };
+        const activity = makeActivity({ storage });
+        const pm = new ProjectManager(activity);
+        pm.prepareExport = jest.fn(() => "[]");
+
+        pm.saveLocally();
+
+        expect(storage["SESSIONIMAGEProj"]).toBe("data:image/png;base64,thumb");
+
+        global.Image = origImage;
+        document.createElement.mockRestore();
+    });
+
+    it("calls ErrorHandler.recoverable when canvas getContext throws during thumbnail", () => {
+        const origImage = global.Image;
+        class FakeImage {
+            constructor() {
+                this.naturalWidth = 100;
+                this.naturalHeight = 100;
+                this.onload = null;
+            }
+            set src(_) {
+                if (this.onload) this.onload();
+            }
+        }
+        global.Image = FakeImage;
+
+        const origCreate = document.createElement.bind(document);
+        const badCanvas = {
+            width: 0,
+            height: 0,
+            getContext: () => {
+                throw new Error("canvas error");
+            }
+        };
+        jest.spyOn(document, "createElement").mockImplementation(tag =>
+            tag === "canvas" ? badCanvas : origCreate(tag)
+        );
+
+        const storage = { currentProject: "Proj" };
+        const activity = makeActivity({ storage });
+        const pm = new ProjectManager(activity);
+        pm.prepareExport = jest.fn(() => "[]");
+
+        pm.saveLocally();
+
+        expect(global.ErrorHandler.recoverable).toHaveBeenCalledWith(expect.any(Error), {
+            operation: "saveLocally_thumbnail"
+        });
+
+        global.Image = origImage;
+        document.createElement.mockRestore();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// PART 26 — _midiImportBlocks button handlers
+// ---------------------------------------------------------------------------
+
+describe("_midiImportBlocks button handlers", () => {
+    let origRequire;
+
+    beforeEach(() => {
+        origRequire = global.require;
+        global.require = jest.fn((deps, cb) => cb && cb());
+        jest.spyOn(document, "getElementById").mockReturnValue(null);
+    });
+
+    afterEach(() => {
+        global.require = origRequire;
+        document.getElementById.mockRestore();
+        const modal = document.body.querySelector("#import-midi");
+        if (modal) document.body.removeChild(modal);
+    });
+
+    it("confirm button is present and has correct class", () => {
+        const pm = new ProjectManager(makeActivity());
+        pm._midiImportBlocks({ tracks: [] });
+
+        const confirmBtn = document.body.querySelector(".confirm-button");
+        expect(confirmBtn).not.toBeNull();
+        expect(confirmBtn.textContent).toBe("Confirm");
+    });
+
+    it("removes the modal when cancel button is clicked", () => {
+        const pm = new ProjectManager(makeActivity());
+        pm._midiImportBlocks({ tracks: [] });
+
+        const cancelBtn = document.body.querySelector(".cancel-button");
+        expect(cancelBtn).not.toBeNull();
+        expect(() => cancelBtn.click()).not.toThrow();
+
+        expect(document.body.querySelector("#import-midi")).toBeNull();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// PART 27 — _setupFileHandlers: inner callbacks
+// ---------------------------------------------------------------------------
+
+describe("_setupFileHandlers inner callbacks", () => {
+    let canvasHolder;
+    let origFileReader;
+
+    beforeEach(() => {
+        canvasHolder = { addEventListener: jest.fn() };
+        jest.spyOn(document, "getElementById").mockReturnValue(canvasHolder);
+        jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
+        document.getElementById.mockRestore();
+        if (origFileReader) {
+            global.FileReader = origFileReader;
+            origFileReader = null;
+        }
+    });
+
+    const captureHandlers = activity => {
+        const handlers = {};
+        activity.fileChooser.addEventListener = jest
+            .fn()
+            .mockImplementation((evt, handler, _flag) => {
+                handlers[evt] = handler;
+            });
+        return handlers;
+    };
+
+    it("click handler clears the fileChooser value", () => {
+        const activity = makeActivity();
+        const handlers = captureHandlers(activity);
+        const pm = new ProjectManager(activity);
+        pm._setupFileHandlers();
+
+        const mockEvent = { currentTarget: { value: "old.tb" } };
+        handlers.click(mockEvent);
+
+        expect(mockEvent.currentTarget.value).toBe("");
+    });
+
+    it("change handler shows error when file is empty (null result)", () => {
+        origFileReader = global.FileReader;
+        class MockFR {
+            constructor() {
+                this.result = null;
+                this.onload = null;
+            }
+            readAsText() {
+                if (this.onload) this.onload();
+            }
+            readAsArrayBuffer() {}
+        }
+        global.FileReader = MockFR;
+
+        const activity = makeActivity();
+        const handlers = captureHandlers(activity);
+        const pm = new ProjectManager(activity);
+        pm._setupFileHandlers();
+
+        activity.fileChooser.files = [{ name: "test.tb" }];
+        handlers.change();
+
+        jest.advanceTimersByTime(200);
+
+        expect(activity.errorMsg).toHaveBeenCalled();
+        expect(activity.loading).toBe(true);
+    });
+
+    it("change handler imports MIDI when .mid file selected", () => {
+        origFileReader = global.FileReader;
+        class MockFR {
+            constructor() {
+                this.onload = null;
+            }
+            readAsText() {}
+            readAsArrayBuffer() {
+                if (this.onload) this.onload({ target: { result: new ArrayBuffer(0) } });
+            }
+        }
+        global.FileReader = MockFR;
+
+        const activity = makeActivity();
+        const handlers = captureHandlers(activity);
+        const pm = new ProjectManager(activity);
+        pm._midiImportBlocks = jest.fn();
+        pm._setupFileHandlers();
+
+        activity.fileChooser.files = [{ name: "song.mid" }];
+        handlers.change();
+
+        expect(pm._midiImportBlocks).toHaveBeenCalled();
+    });
+
+    it("change handler handles midi reader error", () => {
+        origFileReader = global.FileReader;
+        class MockFR {
+            constructor() {
+                this.onload = null;
+            }
+            readAsText() {}
+            readAsArrayBuffer() {
+                if (this.onload) this.onload({ target: { result: new ArrayBuffer(0) } });
+            }
+        }
+        global.FileReader = MockFR;
+        global.Midi = class {
+            constructor() {
+                throw new Error("bad midi");
+            }
+        };
+
+        const activity = makeActivity();
+        const handlers = captureHandlers(activity);
+        const pm = new ProjectManager(activity);
+        pm._setupFileHandlers();
+
+        activity.fileChooser.files = [{ name: "broken.mid" }];
+        handlers.change();
+
+        expect(global.ErrorHandler.capture).toHaveBeenCalledWith(expect.any(Error), {
+            operation: "midiImport"
+        });
+        global.Midi = class {
+            constructor() {}
+        };
+    });
+
+    it("change handler does nothing when no file selected", () => {
+        const activity = makeActivity();
+        const handlers = captureHandlers(activity);
+        const pm = new ProjectManager(activity);
+        pm._setupFileHandlers();
+
+        activity.fileChooser.files = [];
+        expect(() => handlers.change()).not.toThrow();
     });
 });
