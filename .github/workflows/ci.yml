@@ -125,6 +125,17 @@ jobs:
 
     # ----------------------------------------------------------------------
     # Build / smoke test across Node versions
+    #
+    # NOTE on the 20.x leg: `npm ci` prints `npm warn EBADENGINE` here for
+    # @electron/rebuild and node-abi (transitive deps of electron-builder,
+    # used only by the `dist` packaging script; declare `>=22.12.0` as of
+    # @electron/rebuild v4). electron-builder itself still declares
+    # `>=14.0.0` and never officially adopted a Node 22 floor - this crept
+    # in via an unrelated dependency bump, not a deliberate project
+    # decision, and isn't a hard runtime block (the rebuild step has been
+    # verified to complete on Node 20). Install, lint, and the full Jest
+    # suite are unaffected, so 20.x stays in this matrix rather than being
+    # dropped to silence the warning.
     # ----------------------------------------------------------------------
     build:
         name: Build (Node ${{ matrix.node-version }})
