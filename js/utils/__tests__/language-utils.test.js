@@ -12,7 +12,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const { normalizeLanguageCode } = require("../language-utils");
+const { normalizeLanguageCode, LANGUAGE_CODE_TO_LOCALE } = require("../language-utils");
 
 const ROOT = path.join(__dirname, "..", "..", "..");
 const LOCALES_DIR = path.join(ROOT, "locales");
@@ -44,6 +44,30 @@ describe("normalizeLanguageCode", () => {
         expect(normalizeLanguageCode("")).toBe("en");
         expect(normalizeLanguageCode(undefined)).toBe("en");
         expect(normalizeLanguageCode(null)).toBe("en");
+        expect(normalizeLanguageCode(42)).toBe("en");
+        expect(normalizeLanguageCode({})).toBe("en");
+    });
+
+    it("resolves every menu code in the mapping to its declared locale", () => {
+        for (const [menuCode, locale] of Object.entries(LANGUAGE_CODE_TO_LOCALE)) {
+            expect(normalizeLanguageCode(menuCode)).toBe(locale);
+        }
+    });
+
+    it("is idempotent — normalizing an already-normalized code changes nothing", () => {
+        const inputs = [
+            ...Object.keys(LANGUAGE_CODE_TO_LOCALE),
+            "ja-hira",
+            "ja",
+            "fr",
+            "de",
+            "zh_CN",
+            ""
+        ];
+        for (const code of inputs) {
+            const once = normalizeLanguageCode(code);
+            expect(normalizeLanguageCode(once)).toBe(once);
+        }
     });
 });
 

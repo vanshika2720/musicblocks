@@ -23,6 +23,7 @@ const {
     oneHundredToFraction,
     rationalToFraction,
     GCD,
+    LCD,
     rationalSum,
     rgbToHex,
     hexToRGB,
@@ -134,6 +135,18 @@ describe("Utility Logic Functions", () => {
 
         it("returns input as is if not a number", () => {
             expect(toFixed2("abc")).toBe("abc");
+        });
+
+        it("strips trailing zeros left by toFixed, dropping a bare decimal point", () => {
+            expect(toFixed2(3.1)).toBe("3.1");
+            expect(toFixed2(3.5)).toBe("3.5");
+            expect(toFixed2(3.001)).toBe("3");
+            expect(toFixed2(-2.5)).toBe("-2.5");
+        });
+
+        it("rounds to two decimals and keeps non-zero hundredths", () => {
+            expect(toFixed2(0.005)).toBe("0.01");
+            expect(toFixed2(1.238)).toBe("1.24");
         });
     });
 
@@ -277,6 +290,50 @@ describe("Utility Logic Functions", () => {
             expect(result1).toEqual([0, 1]);
             const [result2] = rationalSum([1, 2], [1, 0]);
             expect(result2).toEqual([0, 1]);
+        });
+
+        it("rejects a malformed operand on either side, whichever slot is bad", () => {
+            const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+            try {
+                for (const [a, b] of [
+                    [[1], [1, 2]],
+                    [[1, 2], [1]],
+                    [
+                        ["x", 2],
+                        [1, 2]
+                    ],
+                    [
+                        [1, "x"],
+                        [1, 2]
+                    ],
+                    [
+                        [1, 2],
+                        [null, 2]
+                    ],
+                    [
+                        [1, 2],
+                        [1, undefined]
+                    ],
+                    [[1, 2], "not-an-array"]
+                ]) {
+                    const [value, message] = rationalSum(a, b);
+                    expect(value).toEqual([0, 1]);
+                    expect(message).toBe("Invalid input passed to rational sum");
+                }
+            } finally {
+                warn.mockRestore();
+            }
+        });
+
+        it("reports the zero-denominator failure with its own message", () => {
+            const error = jest.spyOn(console, "error").mockImplementation(() => {});
+            try {
+                const [value, message] = rationalSum([1, 0], [1, 2]);
+                expect(value).toEqual([0, 1]);
+                expect(message).toBe("Note calculation failed: zero denominator");
+            } finally {
+                error.mockRestore();
+            }
         });
     });
 
@@ -567,6 +624,221 @@ describe("Utility Logic Functions", () => {
             expect(isUnsafeObjectKey("myPlugin")).toBe(false);
             expect(isUnsafeObjectKey("FLOWPLUGINS")).toBe(false);
             expect(isUnsafeObjectKey("")).toBe(false);
+        });
+    });
+
+    // ---------------------------------------------------------------------
+    // The blocks below were derived from the module test plan
+    // (scripts/generate-tests/cli.js js/utils/utils-logic.js): every export
+    // is enumerated there with its parameter list and branch/return counts,
+    // which flagged LCD as having no test at all and oneHundredToFraction /
+    // rationalSum / mixedNumber / rationalToFraction as having branches the
+    // existing suite never reaches.
+    // ---------------------------------------------------------------------
+
+    describe("LCD()", () => {
+        it("returns the least common multiple of two positive integers", () => {
+            expect(LCD(4, 6)).toBe(12);
+            expect(LCD(3, 5)).toBe(15);
+            expect(LCD(6, 6)).toBe(6);
+            expect(LCD(1, 7)).toBe(7);
+        });
+
+        it("ignores the sign of either argument", () => {
+            expect(LCD(-4, 6)).toBe(12);
+            expect(LCD(4, -6)).toBe(12);
+            expect(LCD(-4, -6)).toBe(12);
+        });
+
+        it("returns a common multiple of both inputs", () => {
+            for (const [a, b] of [
+                [4, 6],
+                [9, 12],
+                [7, 3],
+                [10, 15],
+                [8, 8]
+            ]) {
+                const m = LCD(a, b);
+                expect(m % a).toBe(0);
+                expect(m % b).toBe(0);
+            }
+        });
+
+        it("satisfies GCD(a, b) * LCD(a, b) === |a * b| for coprime and non-coprime pairs", () => {
+            for (const [a, b] of [
+                [4, 6],
+                [12, 18],
+                [7, 13],
+                [21, 6]
+            ]) {
+                expect(GCD(a, b) * LCD(a, b)).toBe(Math.abs(a * b));
+            }
+        });
+    });
+
+    describe("oneHundredToFraction() — every integer percent", () => {
+        // Each row is [inclusiveStart, inclusiveEnd, [numerator, denominator]],
+        // transcribed from the switch statement in oneHundredToFraction. The
+        // existing suite only spot-checks a dozen values, leaving most switch
+        // arms unexecuted.
+        const table = [
+            [1, 1, [1, 64]],
+            [2, 2, [1, 48]],
+            [3, 5, [1, 32]],
+            [6, 8, [1, 16]],
+            [9, 11, [1, 12]],
+            [12, 14, [1, 8]],
+            [15, 17, [1, 6]],
+            [18, 19, [3, 16]],
+            [20, 22, [1, 5]],
+            [23, 29, [1, 4]],
+            [30, 31, [5, 16]],
+            [32, 35, [1, 3]],
+            [36, 39, [3, 8]],
+            [40, 41, [2, 5]],
+            [42, 44, [7, 16]],
+            [45, 47, [15, 32]],
+            [48, 52, [1, 2]],
+            [53, 54, [17, 32]],
+            [55, 58, [9, 16]],
+            [59, 61, [3, 5]],
+            [62, 65, [5, 8]],
+            [66, 67, [2, 3]],
+            [68, 70, [11, 16]],
+            [71, 74, [23, 32]],
+            [75, 80, [3, 4]],
+            [81, 82, [13, 16]],
+            [83, 86, [5, 6]],
+            [87, 90, [7, 8]],
+            [91, 92, [11, 12]],
+            [93, 95, [15, 16]],
+            [96, 98, [31, 32]],
+            [99, 99, [63, 64]]
+        ];
+
+        it("maps every integer from 1 to 99 onto its documented fraction", () => {
+            for (const [start, end, expected] of table) {
+                for (let d = start; d <= end; d++) {
+                    expect(oneHundredToFraction(d)).toEqual(expected);
+                }
+            }
+        });
+
+        it("uses the floor of a fractional input to pick the switch arm", () => {
+            expect(oneHundredToFraction(23.9)).toEqual([1, 4]);
+            expect(oneHundredToFraction(48.5)).toEqual([1, 2]);
+        });
+
+        it("clamps out-of-range values to the extreme fractions", () => {
+            expect(oneHundredToFraction(0)).toEqual([1, 64]);
+            expect(oneHundredToFraction(0.99)).toEqual([1, 64]);
+            expect(oneHundredToFraction(-10)).toEqual([1, 64]);
+            expect(oneHundredToFraction(99.5)).toEqual([1, 1]);
+            expect(oneHundredToFraction(100)).toEqual([1, 1]);
+            expect(oneHundredToFraction(250)).toEqual([1, 1]);
+        });
+
+        it("is monotonically non-decreasing across the whole 1-99 domain", () => {
+            let previous = -Infinity;
+            for (let d = 1; d <= 99; d++) {
+                const [n, den] = oneHundredToFraction(d);
+                const value = n / den;
+                expect(value).toBeGreaterThanOrEqual(previous);
+                previous = value;
+            }
+        });
+
+        it("stays within 0.06 of the requested ratio for every percent", () => {
+            for (let d = 1; d <= 99; d++) {
+                const [n, den] = oneHundredToFraction(d);
+                expect(Math.abs(n / den - d / 100)).toBeLessThan(0.06);
+            }
+        });
+    });
+
+    describe("mixedNumber() — carry and precision edges", () => {
+        it("carries a fractional part that rounds up to the next whole number", () => {
+            // rationalToFraction(0.9999999) hits its iteration cap and reduces
+            // to [1, 1], so mixedNumber must return the incremented whole part.
+            expect(mixedNumber(1.9999999)).toBe("2");
+            expect(mixedNumber(4.9999999)).toBe("5");
+        });
+
+        it("falls back to a two-decimal string when the denominator exceeds 99", () => {
+            // 0.01 approximates to [1, 100]; a 1/100 fraction is not a musical
+            // subdivision, so the string form is used instead.
+            expect(mixedNumber(2.01)).toBe("2.01");
+        });
+
+        it("returns a bare fraction with no whole part for values below one", () => {
+            expect(mixedNumber(0.25)).toBe("1/4");
+            expect(mixedNumber(0.5)).toBe("1/2");
+        });
+
+        it("returns <n>/1 for whole numbers and echoes non-numeric input", () => {
+            expect(mixedNumber(3)).toBe("3/1");
+            expect(mixedNumber("abc")).toBe("abc");
+        });
+    });
+
+    describe("rationalToFraction() — collapse and cap paths", () => {
+        it("collapses a vanishingly small positive value to [0, 1]", () => {
+            // Not the d === 0 early return: 1e-9 is a non-zero finite input that
+            // drives the numerator to 0 inside the approximation loop.
+            expect(rationalToFraction(1e-9)).toEqual([0, 1]);
+        });
+
+        it("returns a reduced integer pair when the value never converges", () => {
+            const [n, d] = rationalToFraction(Math.PI);
+            expect(Number.isInteger(n)).toBe(true);
+            expect(Number.isInteger(d)).toBe(true);
+            expect(d).toBeGreaterThan(0);
+            expect(GCD(n, d)).toBe(1);
+            expect(Math.abs(n / d - Math.PI)).toBeLessThan(1e-3);
+        });
+    });
+
+    describe("rationalSum() — non-integer components", () => {
+        // Math.floor(x) !== x on any of the four slots routes that slot through
+        // rationalToFraction before the sum; the existing suite only passes
+        // whole-number components.
+        it("normalizes a non-integer numerator on either side before summing", () => {
+            expect(rationalSum([1.5, 2], [1, 2])).toEqual([[5, 4], null]);
+            expect(rationalSum([1, 2], [1.5, 2])).toEqual([[5, 4], null]);
+        });
+
+        it("normalizes a non-integer denominator on either side before summing", () => {
+            expect(rationalSum([1, 2.5], [1, 2])).toEqual([[9, 10], null]);
+            expect(rationalSum([1, 2], [1, 2.5])).toEqual([[9, 10], null]);
+        });
+
+        it("keeps the result unreduced when both denominators already match", () => {
+            expect(rationalSum([3, 4], [1, 4])).toEqual([[4, 4], null]);
+        });
+    });
+
+    describe("resolveObject() — traversal that throws", () => {
+        it("returns undefined when reading a segment of the path throws", () => {
+            const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+            global.MbResolveThrows = new Proxy(
+                {},
+                {
+                    get() {
+                        throw new Error("boom");
+                    }
+                }
+            );
+            try {
+                expect(resolveObject("MbResolveThrows.value")).toBeUndefined();
+                expect(warn).toHaveBeenCalled();
+            } finally {
+                delete global.MbResolveThrows;
+                warn.mockRestore();
+            }
+        });
+
+        it("returns undefined for an empty-string path", () => {
+            expect(resolveObject("")).toBeUndefined();
         });
     });
 });

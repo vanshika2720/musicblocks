@@ -124,6 +124,10 @@ const {
     PITCHES3,
     normalizeNoteAccidentals,
     getCurrentEDO,
+    getEdoNoteNamePosition,
+    temperamentHasRatios,
+    isTrueEDO,
+    isEquallyTempered,
     scalePatternToEDO,
     PITCH_COLLECTIONS_EDO_OVERRIDES,
     getModePattern,
@@ -3988,6 +3992,117 @@ describe("non-EDO temperament helpers", () => {
         it("returns null for a temperament without usable ratios", () => {
             expect(getNonEDOModeSteps("major", "_no_ratios")).toBeNull();
         });
+    });
+
+    // The module test plan (scripts/generate-tests/cli.js js/utils/musicutils.js)
+    // lists temperamentHasRatios, isTrueEDO and isEquallyTempered as exported
+    // predicates with no dedicated coverage. isNonEDO (tested above) is defined
+    // in terms of the first and third, so pinning them down directly guards the
+    // scalar-step routing that depends on them.
+    describe("temperamentHasRatios", () => {
+        it("is true for the shipped ratio-bearing temperaments", () => {
+            expect(temperamentHasRatios("equal")).toBe(true);
+            expect(temperamentHasRatios("just intonation")).toBe(true);
+            expect(temperamentHasRatios("Pythagorean")).toBe(true);
+        });
+
+        it("is false for a temperament that carries no ratio data", () => {
+            expect(temperamentHasRatios("custom")).toBe(false);
+        });
+
+        it("is false for an unknown or non-string temperament", () => {
+            expect(temperamentHasRatios("not-a-temperament")).toBe(false);
+            expect(temperamentHasRatios(null)).toBe(false);
+            expect(temperamentHasRatios(undefined)).toBe(false);
+        });
+    });
+
+    describe("isTrueEDO", () => {
+        it("matches only temperament names beginning with 'equal'", () => {
+            expect(isTrueEDO("equal")).toBe(true);
+            expect(isTrueEDO("equal5")).toBe(true);
+            expect(isTrueEDO("equal19")).toBe(true);
+        });
+
+        it("is false for named unequal temperaments", () => {
+            expect(isTrueEDO("just intonation")).toBe(false);
+            expect(isTrueEDO("Pythagorean")).toBe(false);
+            expect(isTrueEDO("1/4 comma meantone")).toBe(false);
+        });
+
+        it("is false for empty or non-string input", () => {
+            expect(isTrueEDO("")).toBe(false);
+            expect(isTrueEDO(null)).toBe(false);
+            expect(isTrueEDO(42)).toBe(false);
+        });
+    });
+
+    describe("isEquallyTempered", () => {
+        it("is true for every equal division in the temperament list", () => {
+            for (const key of ["equal", "equal5", "equal7", "equal19", "equal31"]) {
+                expect(isEquallyTempered(key)).toBe(true);
+            }
+        });
+
+        it("is false for ratio temperaments whose steps are unequal", () => {
+            // These have a pitchNumber and numeric pitch entries, so the check
+            // walks the entries and rejects them on the 2^(i/n) comparison.
+            expect(isEquallyTempered("just intonation")).toBe(false);
+            expect(isEquallyTempered("Pythagorean")).toBe(false);
+            expect(isEquallyTempered("1/3 comma meantone")).toBe(false);
+        });
+
+        it("is false for an unknown or non-string temperament", () => {
+            expect(isEquallyTempered("not-a-temperament")).toBe(false);
+            expect(isEquallyTempered(null)).toBe(false);
+        });
+
+        it("agrees with isNonEDO: a ratio temperament is non-EDO iff it is not equally tempered", () => {
+            for (const key of ["just intonation", "Pythagorean", "equal", "equal19"]) {
+                if (temperamentHasRatios(key)) {
+                    expect(isNonEDO(key)).toBe(!isEquallyTempered(key));
+                }
+            }
+        });
+    });
+});
+
+describe("getEdoNoteNamePosition", () => {
+    // An exported, documented, pure helper with no direct test. It resolves a
+    // note name to its index in the EDO-specific name table, with three
+    // fallbacks for names the table does not contain verbatim.
+    it("resolves names that appear verbatim in the EDO table", () => {
+        expect(getEdoNoteNamePosition("C", 12)).toBe(0);
+        expect(getEdoNoteNamePosition("C" + SHARP, 12)).toBe(1);
+        expect(getEdoNoteNamePosition("A", 12)).toBe(9);
+        expect(getEdoNoteNamePosition("G", 7)).toBe(4);
+        expect(getEdoNoteNamePosition("D" + FLAT, 19)).toBe(2);
+        expect(getEdoNoteNamePosition("E" + SHARP, 19)).toBe(7);
+    });
+
+    it("normalizes ASCII '#'/'b' and doubled accidentals before the lookup", () => {
+        expect(getEdoNoteNamePosition("C#", 12)).toBe(getEdoNoteNamePosition("C" + SHARP, 12));
+        expect(getEdoNoteNamePosition("Db", 12)).toBe(getEdoNoteNamePosition("D" + FLAT, 12));
+    });
+
+    it("falls back to the 12-EDO enharmonic equivalent for a flat name", () => {
+        // 12-EDO's table is sharp-spelled, so "D♭" only resolves via its
+        // equivalent "C♯" at index 1.
+        expect(getEdoNoteNamePosition("D" + FLAT, 12)).toBe(1);
+        expect(getEdoNoteNamePosition("A" + FLAT, 12)).toBe(8);
+    });
+
+    it("maps a name absent from a non-12 EDO table onto the nearest step by proportion", () => {
+        // 7-EDO has no sharps/flats; the sharp table position (1/12) scales to
+        // round(1/12 * 7) = 1, and the flat table (PITCHES) covers "D♭".
+        expect(getEdoNoteNamePosition("C" + SHARP, 7)).toBe(1);
+        expect(getEdoNoteNamePosition("D" + FLAT, 7)).toBe(1);
+        expect(getEdoNoteNamePosition("A" + FLAT, 5)).toBe(3);
+    });
+
+    it("returns -1 for a name it cannot place at all", () => {
+        expect(getEdoNoteNamePosition("C" + FLAT, 12)).toBe(-1);
+        expect(getEdoNoteNamePosition("Zx", 12)).toBe(-1);
     });
 });
 

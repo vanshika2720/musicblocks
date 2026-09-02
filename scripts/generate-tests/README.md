@@ -101,6 +101,38 @@ await generateTests(plan, { provider: "manual", clientOptions: { responses } });
   public API, not to emit a test per AST node, not to mock the module under
   test, and never to emit code that writes to disk.
 
+## Applying the plan to utility coverage
+
+The extractor is generic, but its first practical use is bounded to the pure
+utility modules under `js/utils/` (plus `js/base64Utils.js`). The plan is read
+as a checklist, not as a test generator:
+
+1. `node scripts/generate-tests/cli.js <module>` lists every export with its
+   parameter list and branch / `return` / `throw` counts.
+2. Cross-reference that list against the module's existing
+   `__tests__/*.test.js` — exports with no `describe` block, and functions
+   whose branch count far exceeds what the suite exercises, are the gaps.
+3. Fill the gaps with behaviour assertions (valid / invalid / boundary / empty
+   inputs, round trips, deterministic tables, documented error paths), never a
+   test written only to move a line.
+4. Re-measure focused Jest coverage and, where the run is bounded enough to be
+   practical, Stryker (`npx stryker run --mutate "<module>"`).
+
+Worked examples from this pass:
+
+| Module              | Plan finding                                                                                                             | Tests added                                                                                                                                                                                                                           |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `utils-logic.js`    | `LCD` exported but untested; `oneHundredToFraction` has 101 branches, the suite hit ~12                                  | exhaustive 1–99 fraction table + monotonicity/tolerance properties, `LCD`/`GCD` invariants, `rationalSum` non-integer components, `mixedNumber` carry/precision edges, `rationalToFraction` collapse path, `resolveObject` throw path |
+| `musicutils.js`     | `getEdoNoteNamePosition`, `temperamentHasRatios`, `isTrueEDO`, `isEquallyTempered` exported with no dedicated `describe` | EDO name-table lookup with its three fallbacks; temperament predicates pinned across the shipped temperament list                                                                                                                     |
+| `base64Utils.js`    | only `decode(encode(x))` round trips — a symmetric bug would pass                                                        | known-answer encoder vectors + Base64-alphabet / padding invariants                                                                                                                                                                   |
+| `language-utils.js` | normaliser had no idempotency or full-mapping check                                                                      | `normalize(normalize(x)) === normalize(x)`, every menu code → its locale                                                                                                                                                              |
+| `mathutils.js`      | already ~99 % branch; remaining gap is the `module.exports` guard                                                        | none — inspected and left as-is                                                                                                                                                                                                       |
+
+Two `utils-logic.js` branches are left uncovered on purpose: the non-browser
+`unescapeHTML` fallback in `isSafeUrl` (jsdom always provides `DOMParser`) and
+the `default` arm of `oneHundredToFraction` (its input is clamped to 1–99, so
+every `Math.floor` value already has an explicit `case`).
+
 ## What is extracted
 
 - **exports** – `module.exports = <object>` (directly or through one identifier)

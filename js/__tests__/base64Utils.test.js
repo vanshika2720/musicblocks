@@ -57,6 +57,36 @@ describe("base64Utils", () => {
         expect(encoded.length).toBeGreaterThan(0);
     });
 
+    test("base64Encode produces the standard UTF-8 Base64 for multibyte input", () => {
+        // Known-answer vectors pin the encoder itself: a decode(encode(x)) === x
+        // round trip still passes if both directions share a compensating bug.
+        expect(base64Utils.base64Encode("café")).toBe("Y2Fmw6k=");
+        expect(base64Utils.base64Encode("日本語")).toBe("5pel5pys6Kqe");
+        expect(base64Utils.base64Encode("Hello 世界 🎵")).toBe("SGVsbG8g5LiW55WMIPCfjrU=");
+    });
+
+    test("base64Encode emits only Base64 alphabet characters with valid padding", () => {
+        const encoded = base64Utils.base64Encode("padding check: 世界!!");
+        expect(encoded).toMatch(/^[A-Za-z0-9+/]+={0,2}$/);
+        expect(encoded.length % 4).toBe(0);
+    });
+
+    test("base64Decode inverts base64Encode across representative inputs", () => {
+        const samples = [
+            "",
+            "a",
+            "ab",
+            "abc",
+            "The quick brown fox jumps over the lazy dog.",
+            "line1\nline2\ttab",
+            "<svg>♪</svg>",
+            "Hello 世界 🎵 こんにちは नमस्ते"
+        ];
+        for (const original of samples) {
+            expect(base64Utils.base64Decode(base64Utils.base64Encode(original))).toBe(original);
+        }
+    });
+
     test("base64Encode and base64Decode should handle long strings", () => {
         const longString = "a".repeat(10000);
         const encoded = base64Utils.base64Encode(longString);
