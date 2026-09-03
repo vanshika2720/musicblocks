@@ -475,4 +475,228 @@ describe("FocusCycleManager module", () => {
             manager.dispose();
         });
     });
+
+    // -----------------------------------------------------------------------
+    // Zone entry / exit against a realistic DOM (toolbars, palette, canvas)
+    // and an ActivityContext exposing a palette model. The suites above run
+    // without these fixtures, so _enterZone / _leaveZone / _focusWorkspaceFromMouse
+    // early-return; here they execute fully.
+    // -----------------------------------------------------------------------
+    describe("zone entry and DOM handoff", () => {
+        let palettes;
+
+        const buildZoneDom = () => {
+            document.body.innerHTML = `
+                <div id="toolbars"><button id="tb1">a</button><button id="tb2">b</button></div>
+                <div id="palette" tabindex="0">
+                    <div><div></div><div><div></div><div id="listBody">
+                        <div id="r0"></div><div id="r1"></div>
+                    </div></div></div>
+                </div>
+                <div id="canvasHolder"></div>
+                <div id="canvas"></div>
+                <div id="canvasContainer"></div>
+            `;
+            for (const id of ["tb1", "tb2"]) {
+                Object.defineProperty(document.getElementById(id), "offsetWidth", {
+                    configurable: true,
+                    value: 40
+                });
+            }
+        };
+
+        beforeEach(() => {
+            if (typeof PointerEvent === "undefined") {
+                global.PointerEvent = class PointerEvent extends Event {};
+            }
+            buildZoneDom();
+            palettes = {
+                _keyboardNavActive: false,
+                resetKeyboardNavigation: jest.fn(),
+                _navSection: null,
+                _navBlockIndex: null
+            };
+            global.ActivityContext = { getActivity: () => ({ palettes, blocks: {} }) };
+            window.platformColor = { hoverColor: "#123456" };
+        });
+
+        afterEach(() => {
+            delete global.ActivityContext;
+        });
+
+        test("entering the toolbar focuses a visible button, sets the ring and announces", () => {
+            const manager = new FocusCycleManager();
+            manager.init();
+            const focusSpy = jest.spyOn(document.getElementById("tb1"), "focus");
+
+            pressTab(false);
+
+            expect(manager._currentZone).toBe("toolbar");
+            expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true });
+            expect(
+                document.getElementById("toolbars").classList.contains("focus-zone-active")
+            ).toBe(true);
+            expect(document.getElementById("fcm-announcer").textContent).toBe("Toolbar active");
+
+            manager.dispose();
+        });
+
+        test("entering the palette syncs keyboard state and highlights a block row", () => {
+            const manager = new FocusCycleManager();
+            manager.init();
+
+            pressTab(false); // toolbar
+            pressTab(false); // palette
+
+            expect(manager._currentZone).toBe("palette");
+            expect(palettes._keyboardNavActive).toBe(true);
+            expect(palettes._navSection).toBe("blocks");
+            expect(document.getElementById("r1").dataset.keyboardFocus).toBe("true");
+            expect(document.getElementById("fcm-announcer").textContent).toBe("Palette active");
+
+            manager.dispose();
+        });
+
+        test("leaving the palette calls resetKeyboardNavigation", () => {
+            const manager = new FocusCycleManager();
+            manager.init();
+
+            pressTab(false); // toolbar
+            pressTab(false); // palette
+            pressTab(false); // workspace
+
+            expect(palettes.resetKeyboardNavigation).toHaveBeenCalledWith({
+                closeMenus: true,
+                blur: true
+            });
+
+            manager.dispose();
+        });
+
+        test("palette sync falls back to the flag when resetKeyboardNavigation is absent", () => {
+            palettes = { _keyboardNavActive: false };
+            const manager = new FocusCycleManager();
+            manager.init();
+
+            pressTab(false); // toolbar
+            pressTab(false); // palette
+            expect(palettes._keyboardNavActive).toBe(true);
+            pressTab(false); // workspace
+            expect(palettes._keyboardNavActive).toBe(false);
+
+            manager.dispose();
+        });
+
+        test("entering the workspace focuses canvasHolder and re-engages the canvas", () => {
+            const manager = new FocusCycleManager();
+            manager.init();
+            const holderFocus = jest.spyOn(document.getElementById("canvasHolder"), "focus");
+            const canvasDispatch = jest.spyOn(document.getElementById("canvas"), "dispatchEvent");
+
+            pressTab(false); // toolbar
+            pressTab(false); // palette
+            pressTab(false); // workspace
+
+            expect(manager._currentZone).toBe("workspace");
+            expect(holderFocus).toHaveBeenCalledWith({ preventScroll: true });
+            expect(canvasDispatch).toHaveBeenCalled();
+            expect(document.getElementById("canvasHolder").getAttribute("tabindex")).toBe("-1");
+            expect(document.getElementById("fcm-announcer").textContent).toBe("Workspace active");
+
+            manager.dispose();
+        });
+
+        test("leaving the toolbar strips toolbar-btn-focused and blurs the button", () => {
+            const manager = new FocusCycleManager();
+            manager.init();
+            const btn = document.getElementById("tb1");
+            btn.classList.add("toolbar-btn-focused");
+            const blurSpy = jest.spyOn(btn, "blur");
+
+            pressTab(false); // enter toolbar
+            pressTab(false); // leave toolbar
+
+            expect(btn.classList.contains("toolbar-btn-focused")).toBe(false);
+            expect(blurSpy).toHaveBeenCalled();
+
+            manager.dispose();
+        });
+
+        test("mousedown on the workspace focuses it and hands off palette state", () => {
+            const manager = new FocusCycleManager();
+            manager.init();
+            pressTab(false);
+
+            const holder = document.getElementById("canvasHolder");
+            const holderFocus = jest.spyOn(holder, "focus");
+            holder.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+
+            expect(manager._keyboardMode).toBe(false);
+            expect(holderFocus).toHaveBeenCalled();
+            expect(manager._currentZone).toBe("workspace");
+            expect(palettes.resetKeyboardNavigation).toHaveBeenCalledWith({
+                closeMenus: true,
+                blur: true
+            });
+
+            manager.dispose();
+        });
+
+        test("focusin on a toolbar button records it as the remembered button", () => {
+            const manager = new FocusCycleManager();
+            manager.init();
+            const btn = document.getElementById("tb2");
+
+            btn.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+
+            expect(manager._lastFocusedButton).toBe(btn);
+
+            manager.dispose();
+        });
+
+        test("re-entering the toolbar restores the remembered button", () => {
+            const manager = new FocusCycleManager();
+            manager.init();
+            const btn = document.getElementById("tb2");
+            btn.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+            const focusSpy = jest.spyOn(btn, "focus");
+
+            pressTab(false);
+
+            expect(focusSpy).toHaveBeenCalled();
+
+            manager.dispose();
+        });
+
+        test("focusin inside the palette while in keyboard mode updates the tracked zone", () => {
+            const manager = new FocusCycleManager();
+            manager.init();
+            manager._keyboardMode = true;
+
+            document
+                .getElementById("r0")
+                .dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+
+            expect(manager._currentZone).toBe("palette");
+
+            manager.dispose();
+        });
+
+        test("Tab is bypassed when the active element sits inside a dialog", () => {
+            const manager = new FocusCycleManager();
+            manager.init();
+            document.body.insertAdjacentHTML(
+                "beforeend",
+                '<div role="dialog"><button id="dlg">x</button></div>'
+            );
+            document.getElementById("dlg").focus();
+
+            const event = pressTab(false);
+
+            expect(manager._keyboardMode).toBe(false);
+            expect(event.defaultPrevented).toBe(false);
+
+            manager.dispose();
+        });
+    });
 });

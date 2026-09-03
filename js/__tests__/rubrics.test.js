@@ -31,10 +31,11 @@ const {
     runAnalytics,
     getStatsFromNotation
 } = require("../rubrics");
-const { isCustomTemperament } = require("../utils/musicutils");
+const { isCustomTemperament, getTemperament } = require("../utils/musicutils");
 
 global.last = jest.fn();
 global.isCustomTemperament = isCustomTemperament;
+global.getTemperament = getTemperament;
 global.TextEncoder = require("util").TextEncoder;
 global.TextDecoder = require("util").TextDecoder;
 
@@ -220,6 +221,155 @@ describe("rubrics.js test suite", () => {
             expect(stats.numberOfNotes).toBeGreaterThan(0);
             expect(stats).toHaveProperty("rests", 1);
             expect(stats).toHaveProperty("ornaments", 1);
+        });
+    });
+
+    describe("analyzeProject block-retention guards", () => {
+        const analyze = blockList => analyzeProject({ blocks: { blockList } });
+
+        it("drops a first-group block whose flow connection is null", () => {
+            expect(analyze([{ name: "tie", connections: [null, null] }])).toEqual(
+                new Array(PALS.length).fill(0)
+            );
+        });
+
+        it("drops a tuplet2 block with no child", () => {
+            expect(analyze([{ name: "tuplet2", connections: [null, {}, {}, null] }])).toEqual(
+                new Array(PALS.length).fill(0)
+            );
+        });
+
+        it("drops an invert block with no child", () => {
+            expect(analyze([{ name: "invert", connections: [null, {}, {}, {}, null] }])).toEqual(
+                new Array(PALS.length).fill(0)
+            );
+        });
+
+        it("logs a debug line for a retained block that is not in the catalog", () => {
+            const spy = jest.spyOn(console, "debug").mockImplementation(() => {});
+            analyze([{ name: "zzz_not_in_catalog", connections: ["parent"] }]);
+            expect(spy).toHaveBeenCalledWith("zzz_not_in_catalog not in catalog");
+            spy.mockRestore();
+        });
+
+        it("retains connected blocks from every guarded switch group", () => {
+            jest.spyOn(console, "debug").mockImplementation(() => {});
+            const result = analyze([
+                { name: "start", connections: [null, {}] },
+                { name: "note", connections: [null, {}, {}] },
+                { name: "crescendo", connections: [null, {}, {}] },
+                { name: "tuplet2", connections: [null, {}, {}, {}] },
+                { name: "invert", connections: [null, {}, {}, {}, {}] }
+            ]);
+            expect(result).toHaveLength(PALS.length);
+            console.debug.mockRestore();
+        });
+    });
+
+    describe("getStatsFromNotation notation branches", () => {
+        const emptyBlocks = { blockList: [] };
+
+        it("counts duples, triplets and quintuplets and records articulation markers", () => {
+            const activity = {
+                logo: {
+                    notation: {
+                        notationStaging: {
+                            0: [[[], 2], [[], 3], [[], 5], "begin articulation", "end articulation"]
+                        }
+                    },
+                    synth: { inTemperament: false, _getFrequency: jest.fn(() => 440) }
+                },
+                blocks: emptyBlocks
+            };
+
+            const stats = getStatsFromNotation(activity);
+
+            expect(stats.duples).toBe(1);
+            expect(stats.triplets).toBe(1);
+            expect(stats.quintuplets).toBe(1);
+            expect(stats.articulation.begin).toEqual(["3", "4"]);
+        });
+
+        it("tracks the lowest and highest notes as it walks the staging list", () => {
+            const freqs = { C4: 400, A4: 200, E4: 800 };
+            const activity = {
+                logo: {
+                    notation: { notationStaging: { 0: [[["C4", "A4", "E4"], 4]] } },
+                    synth: { inTemperament: false, _getFrequency: jest.fn(n => freqs[n]) }
+                },
+                blocks: emptyBlocks
+            };
+
+            const stats = getStatsFromNotation(activity);
+
+            expect(stats.lowestNote[0]).toBe("A4");
+            expect(stats.highestNote[0]).toBe("E4");
+            expect(stats.numberOfNotes).toBe(3);
+            expect([...stats.pitchNames].sort()).toEqual(["A", "C", "E"]);
+        });
+
+        it("uses the custom-temperament frequency path and relabels the note", () => {
+            isCustomTemperament.mockReturnValueOnce(true);
+            getTemperament.mockReturnValueOnce([["x", "Do", "y", "C"]]);
+            const activity = {
+                logo: {
+                    notation: { notationStaging: { 0: [[["C4"], 4]] } },
+                    synth: {
+                        inTemperament: "custom",
+                        getCustomFrequency: jest.fn(() => 260),
+                        _getFrequency: jest.fn(() => NaN)
+                    }
+                },
+                blocks: emptyBlocks
+            };
+
+            const stats = getStatsFromNotation(activity);
+
+            expect(activity.logo.synth.getCustomFrequency).toHaveBeenCalled();
+            expect(stats.pitches).toEqual([260]);
+            expect([...stats.pitchNames]).toEqual(["Do"]);
+        });
+
+        it("records a rest pitch name when a note carries no letter", () => {
+            const activity = {
+                logo: {
+                    notation: { notationStaging: { 0: [[["4"], 4]] } },
+                    synth: { inTemperament: false, _getFrequency: jest.fn(() => 100) }
+                },
+                blocks: emptyBlocks
+            };
+
+            const stats = getStatsFromNotation(activity);
+
+            expect([...stats.pitchNames]).toEqual(["R"]);
+        });
+
+        it("skips trashed blocks in the rest and ornament tally", () => {
+            const activity = {
+                logo: {
+                    notation: { notationStaging: {} },
+                    synth: { inTemperament: false, _getFrequency: jest.fn(() => 1) }
+                },
+                blocks: {
+                    blockList: [
+                        {
+                            name: "rest2",
+                            trash: true,
+                            protoblock: { palette: { name: "rhythm" } }
+                        },
+                        {
+                            name: "rest2",
+                            trash: false,
+                            protoblock: { palette: { name: "ornaments" } }
+                        }
+                    ]
+                }
+            };
+
+            const stats = getStatsFromNotation(activity);
+
+            expect(stats.rests).toBe(1);
+            expect(stats.ornaments).toBe(1);
         });
     });
 });

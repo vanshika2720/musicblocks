@@ -510,3 +510,64 @@ describe("Test 6: Empty-voice and degenerate input guard", () => {
         expect(newnotes).toHaveLength(2);
     });
 });
+
+// ---------------------------------------------------------------------------
+// Test 7 — Repeats that begin part-way through a staff (_processRepeatMid)
+//
+// A repeat bar pair inside the *second* (or later) voice of a staff produces a
+// repeat entry whose `start` index is > 0, exercising the mid-piece rewiring
+// path (`_processRepeatMid`) rather than the from-start path covered above.
+// ---------------------------------------------------------------------------
+describe("Test 7: Mid-piece repeats", () => {
+    /** One staff, several voices — every voice shares the same key/meter. */
+    function staffWithVoices(voices) {
+        return makeTune({
+            staves: [
+                {
+                    meter: { value: [{ num: 4, den: 4 }] },
+                    key: { root: "C", mode: "major", accidentals: [] },
+                    voices
+                }
+            ]
+        });
+    }
+
+    test("repeat inside the second voice is wired as a mid-piece repeat", async () => {
+        const tune = staffWithVoices([
+            [makeNote("C", 0), makeNote("D", 1)],
+            [
+                makeNote("E", 2),
+                makeBar("bar_left_repeat"),
+                makeNote("F", 3),
+                makeBar("bar_right_repeat")
+            ]
+        ]);
+        const blocks = await parseAndCapture(tune);
+        const repeats = blocksOfType(blocks, "repeat");
+        expect(repeats).toHaveLength(1);
+        // The repeat's count child points at a number block with value 2.
+        const countId = repeats[0][4][1];
+        const countBlock = blocks.find(b => b[0] === countId);
+        expect(countBlock[1]).toEqual(["number", { value: 2 }]);
+    });
+
+    test("from-start repeat followed by another line rewires the successor nameddo", async () => {
+        const tune = staffWithVoices([
+            [makeBar("bar_left_repeat"), makeNote("C", 0), makeBar("bar_right_repeat")],
+            [makeNote("D", 1), makeNote("E", 2)]
+        ]);
+        const blocks = await parseAndCapture(tune);
+        expect(blocksOfType(blocks, "repeat")).toHaveLength(1);
+    });
+
+    test("repeat spanning multiple lines with a trailing line does not crash", async () => {
+        const tune = staffWithVoices([
+            [makeNote("C", 0), makeNote("D", 1)],
+            [makeNote("E", 2), makeBar("bar_left_repeat")],
+            [makeNote("F", 3), makeBar("bar_right_repeat")],
+            [makeNote("G", 4), makeNote("A", 5)]
+        ]);
+        const blocks = await parseAndCapture(tune);
+        expect(blocksOfType(blocks, "repeat")).toHaveLength(1);
+    });
+});
